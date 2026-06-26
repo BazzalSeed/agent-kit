@@ -1,0 +1,13 @@
+{
+  "name": "agent-team",
+  "description": "Design and launch high-leverage Claude Code agent teams — analyze the repo, propose a lean team plan (lean by default, escalate on trigger), then spawn named teammates and synthesize one deliverable.",
+  "version": "0.1.0",
+  "author": {
+    "name": "BazzalSeed",
+    "url": "https://github.com/BazzalSeed"
+  },
+  "homepage": "https://github.com/BazzalSeed/agent-kit",
+  "repository": "https://github.com/BazzalSeed/agent-kit",
+  "license": "MIT",
+  "keywords": ["agent-teams", "teammates", "orchestration", "multi-agent", "claude-code", "parallel"]
+}

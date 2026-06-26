@@ -1,0 +1,15 @@
+{
+  "name": "agent-kit",
+  "description": "A Claude-first marketplace of skills for building high-leverage agent teams and workflows.",
+  "owner": {
+    "name": "BazzalSeed",
+    "url": "https://github.com/BazzalSeed"
+  },
+  "plugins": [
+    {
+      "name": "agent-team",
+      "source": "./plugins/agent-team",
+      "description": "Design and launch high-leverage Claude Code agent teams: analyze the repo, propose a lean team plan, then spawn named teammates."
+    }
+  ]
+}
