@@ -15,20 +15,28 @@ Spawn the team a plan describes, then **coordinate — do not do the work yourse
    ```json
    { "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
    ```
-2. **Load the plan.** Use the exact path/slug given; else if **exactly one** file is in `.claude/team-plans/`, use it; **if several exist and no path was given, list them and ask which via the `AskUserQuestion` tool — never silently pick the most-recent**; else, if the user gave an inline goal, invoke the `plan-team` skill (via the Skill tool) on it first. Restate what you're about to spawn **as a table (role · model · ownership)** and get a quick go-ahead. **If invoked by another agent, not a user, skip the go-ahead and proceed.**
-3. **Spawn one named teammate per role** — Agent tool, a distinct `name` per role (read the plan's roles **table**, one teammate per row):
+2. **Load the plan, then derisk prerequisites.** Use the exact path/slug given; else if **exactly one** file is in `.claude/team-plans/`, use it; **if several exist and no path was given, list them and ask which via the `AskUserQuestion` tool — never silently pick the most-recent**; else, if the user gave an inline goal, invoke the `plan-team` skill (via the Skill tool) on it first. **Before spawning, the lead resolves the plan's user-input prerequisites itself** (logins / CLI auth / domain / paid steps) and confirms they actually work — so no teammate stalls mid-build. Restate what you're about to spawn **as a table (role · model · ownership)** + the **Ship goal**, and get a quick go-ahead. **If invoked by another agent, not a user, skip the go-ahead and proceed.**
+3. **Spawn ALL teammates at once** — one Agent-tool call per roles-table row, in a single message, each a distinct `name`. A team is strongest with everyone present from the start; don't stagger-spawn sequential roles — handle dependencies with **prep-then-wait** instructions instead.
    - **Model:** map each row's **Model** column to the Agent tool's lowercase value (`haiku`/`sonnet`/`opus`/`fable`). If a named model isn't available this session, warn and fall back to `sonnet`.
-   - **Spawn prompt** (their whole task-world; they don't see this chat):
+   - **Spawn prompt** (their whole task-world; they don't see this chat) — **inject the `Ship goal` into every one**:
      ```
      You are the <role> teammate. <READ-ONLY, or the edit scope.>
+     SHIP GOAL (shared definition of done): <the plan's Ship goal>.
      Owns: <area>. Deliverable: <concrete artifact>.
      <Context(role) facts from the plan, if any.>
      <Seams: message <partner-name> about <X>.>   # inject the partner's spawn name
+     <prep-then-wait, if this role depends on another:
+        first read <context> and post your task plan, then WAIT for the lead's go-signal
+        ("<upstream> gate green") before any writes.>
+     <build/edit roles: use TDD; run your unit + integration tests GREEN before reporting done.>
      ```
    - **Seams:** for each pair, inject the **counterpart's spawn name** into both prompts — a teammate can't `SendMessage` to a name it was never told.
+   - **Sequential deps = prep-then-wait, not staggered spawning.** A downstream role spawns now but only **prepares** (reads context, posts its task plan) until the lead relays the upstream's go-signal — then it writes. The lead relays that signal when the upstream reports its gate green.
+   - **Builders:** TDD + run their own unit/integration tests green before reporting "done" (bake into the prompt).
+   - **Reviewer:** review at the plan's **milestones** (not per-task) — typically the foundation/contracts gate, the integration seam, and a final birds-eye.
    - **Plan approval:** if the plan has it, inject the criteria into the spawn prompt and instruct the teammate to send a `plan_approval_request` **before any writes**; approve/reject via the protocol response, judged against those criteria.
-4. **Wait for the teammates. Do NOT start implementing yourself.** Monitor, answer messages, steer. Let `Seams` partners message each other.
-5. **Synthesize** the single deliverable the plan names — one merged output. If a teammate errored or returned nothing, **note the gap explicitly** and surface the uncovered area; don't silently drop it.
+4. **Wait for the teammates. Do NOT start implementing yourself.** Monitor, answer messages, steer, **relay go-signals** between prep-then-wait roles. Let `Seams` partners message each other.
+5. **Synthesize toward the `Ship goal`** — one merged output, judged against that one sentence. If a teammate errored or returned nothing, **note the gap explicitly** and surface the uncovered area; don't silently drop it.
 6. **Wind down.** Shut down idle teammates (send a `shutdown_request`). On session exit the **team config** is removed automatically; the **task list persists** locally (retention via `cleanupPeriodDays`) so resumed sessions keep tasks. Intervene on a teammate only if it has gone quiet with no `TaskUpdate` and isn't reachable.
 
 ## Permissions (default: don't bypass)
@@ -45,3 +53,7 @@ Teammates inherit the **lead's** permission mode (you can't set per-teammate at 
 - Lead implements instead of waiting → defeats the point.
 - Wrong model string (`"Sonnet"` not `"sonnet"`) or a model the session lacks → silent fallback.
 - Seams declared but partner names not injected → teammates can't actually message each other.
+- **Staggered spawning** when prep-then-wait would do → cold-start latency + less visibility. Spawn all at once; gate with instructions.
+- **Forgetting to inject the `Ship goal`** → roles optimize local deliverables and lose the whole.
+- **Builders reporting "done" without running their tests** → defects sail to the reviewer. "Done" = tests green.
+- **Lead spawns before derisking a login/domain/paid prereq** → a teammate stalls mid-build. Resolve those first.
