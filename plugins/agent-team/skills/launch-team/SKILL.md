@@ -9,7 +9,9 @@ description: Use when spawning or starting a Claude Code agent team now — from
 Spawn the team a plan describes, then **coordinate — do not do the work yourself.** The session that runs this becomes the **lead**; each teammate gets its own context window. The lead waits for them and synthesizes one deliverable. Cost is ~7× a normal session, so launch deliberately. Pairs with the `plan-team` skill, which produces the plan.
 
 ## Process
-1. **Check the feature is enabled.** Agent teams require `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings `env`, read at **startup**. If you cannot spawn teammates, tell the user to add this to `~/.claude/settings.json` (or `.claude/settings.local.json`) and **restart the session**, then stop — do not fake a "team" inside one context:
+1. **Check the feature is enabled — and offer to enable it.** Agent teams require `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings `env`, read at **startup**. If you can't spawn teammates:
+   - **Offer to set it for the user** (with permission) — merge the env var into `~/.claude/settings.json`, or a project `.claude/settings.local.json`, preserving any existing `env` keys. Use the `update-config` skill if available; otherwise edit the JSON directly.
+   - **It only takes effect after a restart** (env is read at startup). So: make the edit, tell the user to restart the session, then **stop** — don't fake a "team" inside one context.
    ```json
    { "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
    ```
