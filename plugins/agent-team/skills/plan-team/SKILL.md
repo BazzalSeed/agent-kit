@@ -79,6 +79,7 @@ Front-loading all three every time is the unreadable wall people complain about.
 - Teammates inherit **CLAUDE.md, MCP servers, skills, and the lead's effort level** — but **not** the lead's model or chat history. So name a model per role and put task-specific facts in the plan.
 - **One owner per area** (file-set or domain) — overlap is how teammates collide or double-count.
 - **Much more expensive than one session** — each teammate is a full Claude; ~5–6 tasks per teammate.
+- **A gating/foundation role (e.g. an "architect") stays thin.** Its job is the **un-parallelizable shared setup** — freeze the contracts/interfaces (the *law* the builders can't change) + stand up only the **skeleton, schema, shared config, and scaffolding needed to unblock the parallel lanes**. It must **NOT implement feature behavior** — leave the bodies as stubs for the builders. Its value is the frozen seam, not code volume. Scope it: contracts + skeleton, then hand off and gate.
 
 ## Common mistakes
 - Forcing a team when subagents or solo fit → wasted spend.
