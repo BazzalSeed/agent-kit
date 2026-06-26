@@ -15,9 +15,9 @@ Spawn the team a plan describes, then **coordinate — do not do the work yourse
    ```json
    { "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
    ```
-2. **Load the plan.** Use the exact path/slug given; else the most-recent or only file in `.claude/team-plans/`; else, if the user gave an inline goal, invoke the `plan-team` skill (via the Skill tool) on it first. Restate what you're about to spawn — N roles, model each, ownership — and get a quick go-ahead. **If invoked by another agent, not a user, skip the go-ahead and proceed.**
-3. **Spawn one named teammate per role** — Agent tool, a distinct `name` per role:
-   - **Model:** map the plan's per-role token to the Agent tool's lowercase value (`haiku`/`sonnet`/`opus`/`fable`). If a named model isn't available this session, warn and fall back to `sonnet`.
+2. **Load the plan.** Use the exact path/slug given; else if **exactly one** file is in `.claude/team-plans/`, use it; **if several exist and no path was given, list them and ask which via the `AskUserQuestion` tool — never silently pick the most-recent**; else, if the user gave an inline goal, invoke the `plan-team` skill (via the Skill tool) on it first. Restate what you're about to spawn **as a table (role · model · ownership)** and get a quick go-ahead. **If invoked by another agent, not a user, skip the go-ahead and proceed.**
+3. **Spawn one named teammate per role** — Agent tool, a distinct `name` per role (read the plan's roles **table**, one teammate per row):
+   - **Model:** map each row's **Model** column to the Agent tool's lowercase value (`haiku`/`sonnet`/`opus`/`fable`). If a named model isn't available this session, warn and fall back to `sonnet`.
    - **Spawn prompt** (their whole task-world; they don't see this chat):
      ```
      You are the <role> teammate. <READ-ONLY, or the edit scope.>

@@ -19,36 +19,44 @@ If it isn't a team, say so and stop — forcing one is the most expensive mistak
 
 ## Process
 1. **Analyze the repo.** Read `CLAUDE.md` / `AGENTS.md`, scan the layout and `git status` for natural **ownership areas** — a *file-set* per area for build/edit work, or a *domain/lens* (brand, a11y, copy…) for review/analysis. Note invariants and load-bearing facts that live *outside* CLAUDE.md. Each area = one role; merge a **thin** role (≤~3 files, or fewer than ~3 distinct deliverable items) into an adjacent one. 3–5 roles typical.
-2. **Resolve the scope fork, then ask only what you can't infer (1–3 questions max).** The load-bearing fork is **findings-only vs also-fix** — infer *findings-only* unless the request says fix / patch / update / resolve; ask only if genuinely ambiguous. "Also-fix" makes teammates edit code (→ plan approval) and changes the deliverable. Also clarify the goal if unclear. Don't interrogate.
-3. **Pick a model per role** (see *Models* below) and **draft the lean plan** (format below): one role per ownership area, each with a **concrete, named deliverable**. Add an escalation only when its trigger fires.
-4. **Ask where to save.** Slug = kebab-case of the goal, ≤4 words (e.g. `review-landing-page`). Offer the choices (Enter = default). **If you were invoked by another agent rather than a user, skip the prompt and use the default.**
+2. **Resolve the scope fork, then ask only what you can't infer (1–3 questions max).** The load-bearing fork is **findings-only vs also-fix** — infer *findings-only* unless the request says fix / patch / update / resolve; ask only if genuinely ambiguous. "Also-fix" makes teammates edit code (→ plan approval) and changes the deliverable. Also clarify the goal if unclear. Don't interrogate. **Ask via the `AskUserQuestion` tool** (selectable options), not a plain-text prompt.
+3. **Pick a model per role** (see *Models* below) and **draft the lean plan** (format below): one role per ownership area, each with a **concrete, named deliverable**. Add an escalation only when its trigger fires. **Present the draft to the user as the roles table** (below) — not a bullet wall.
+4. **Ask where to save — via the `AskUserQuestion` tool** (selectable options, not a text prompt). Slug = kebab-case of the goal, ≤4 words (e.g. `review-landing-page`); the slug is **deterministic — re-running for the same goal revises the *same* file in place, never a `-v2` copy**, so `launch-team` is never ambiguous. Options:
    - `.claude/team-plans/<slug>.md` — scratch, gitignored *(default)*
    - `docs/team-playbooks/<slug>.md` — committed, reusable playbook
    - a custom path
-   On first use of the scratch path, add `.claude/team-plans/` to `.gitignore` **only if not already present.**
-5. **Write the plan, then hand off** with the **exact path**: "review/edit it, then run `/agent-team:launch-team <path>`." If the user requests changes, revise in place and re-confirm before handing off.
+   On first use of the scratch path, add `.claude/team-plans/` to `.gitignore` **only if not already present.** **If you were invoked by another agent rather than a user, skip the prompt and use the default.**
+5. **Write the plan, then hand off** with the **exact path**: "review/edit it, then run `/agent-team:launch-team <path>`." Always hand off the *exact* path (not just "the plan") so launch is unambiguous. If the user requests changes, revise the same file in place and re-confirm before handing off.
 
 ## Models (suggest, but make override trivial)
 Suggest a model per role, grounded in what this session can actually spawn — the Agent tool's set is **`haiku`, `sonnet`, `opus`, `fable`**; the user's plan may expose only a subset, which they can confirm with `/model`. Guidance:
 - **Default `sonnet`** — the cost-fit for most coordination/review work.
 - **`opus`** for heavy reasoning, or a high-stakes synthesis (set it on the `Lead:` line).
 - **`haiku`** for cheap, mechanical roles (collecting, listing, simple checks).
+- **A reviewer / judge / synthesis role is never *weaker* than the strongest role it reviews.** A model can't reliably catch mistakes a stronger model made — a `sonnet` reviewer over `opus` builders is backwards. Match or exceed: `opus` builders → `opus` (or `fable`) reviewer. Right-size *down* only for mechanical roles, never for the role that judges quality.
 
 The model is a **per-role token in the plan** — the user overrides by editing it. Don't invent model names; only suggest from the set above (or whatever `/model` shows).
 
 ## Plan format (lean by default)
+Roles go in a **table** — far more readable than a bullet wall, both in the file and when you print it back to the user.
 ```md
 # Team plan: <goal>
 Lead: <model>            # omit unless synthesis warrants more than your current session model
+
 Spawn <N> teammates to <goal>:
-- <role> (<model>): owns <file-set OR domain/lens> → <concrete deliverable>
-- <role> (<model>): owns <…> → <…>
+
+| Role | Model | Owns (file-set OR domain/lens) | Deliverable |
+|---|---|---|---|
+| <role> | <model> | <area> | <concrete, named artifact> |
+| <role> | <model> | <…> | <…> |
+
 Wait for them, then synthesize <one output>.
 
 ## Notes
 <why a team here; which escalations fired and why>
 ```
 **Name the deliverable concretely.** For a review that's *"a prioritized findings list (severity + file location + fix),"* not bare "findings."
+**Always present the plan back to the user as this table** (Role · Model · Owns · Deliverable) — never a raw paragraph/bullet dump.
 
 Add escalations **inline, above `## Notes`** — only when the trigger is true:
 
@@ -69,4 +77,6 @@ Front-loading all three every time is the unreadable wall people complain about.
 - Forcing a team when subagents or solo fit → wasted spend.
 - Vague deliverable ("help with X", a bare "findings") → drift. Name the artifact each role produces.
 - One model for everything → either overpaying (opus on mechanical work) or underpowering a synthesis. Right-size per role.
+- **Reviewer/judge weaker than the builders** → it rubber-stamps their bugs. Match or exceed the strongest reviewed role.
 - Front-loading every escalation → the unreadable prompt people complain about. Lean first.
+- Presenting the plan as a bullet wall instead of the roles **table** → hard to read; use the table.
