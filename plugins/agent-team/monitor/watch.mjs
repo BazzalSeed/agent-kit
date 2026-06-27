@@ -1,5 +1,8 @@
-import { readFileSync, readdirSync, existsSync, statSync, appendFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync, appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import http from 'node:http';
+import { spawn } from 'node:child_process';
+import { teamDir, pickActiveTeam } from './sources.mjs';
 import { extractMessages, normalizeTask, deriveProgress, buildRoster, extractMandates, computeLiveness, readNewLines } from './parse.mjs';
 import { transcriptPaths } from './sources.mjs';
 
@@ -74,3 +77,51 @@ export class Recorder {
   }
   getState() { return this.state; }
 }
+
+export function startServer({ recorder, port = 0, viewerPath }) {
+  const clients = new Set();
+  recorder.onEvent(m => { const d = `data: ${JSON.stringify(m)}\n\n`; for (const c of clients) c.write(d); });
+  const server = http.createServer((req, res) => {
+    if (req.url === '/state') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(recorder.getState()));
+    } else if (req.url === '/events') {
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
+      res.write('\n'); clients.add(res); req.on('close', () => clients.delete(res));
+    } else {
+      try { res.writeHead(200, { 'content-type': 'text/html' }); res.end(readFileSync(viewerPath)); }
+      catch { res.writeHead(404); res.end('viewer.html missing'); }
+    }
+  });
+  server.listen(port);
+  const actual = server.address().port;
+  return { server, port: actual, url: `http://127.0.0.1:${actual}/` };
+}
+
+function arg(argv, name, def) { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : def; }
+
+export function main(argv) {
+  const home = process.env.HOME;
+  const teamRoot = join(home, '.claude', 'teams');
+  const tasksRoot = join(home, '.claude', 'tasks');
+  const projectsRoot = arg(argv, '--projects', join(home, '.claude', 'projects'));
+  let teamName = arg(argv, '--team');
+  if (!teamName) {
+    const names = (() => { try { return readdirSync(teamRoot).filter(n => n.startsWith('session-')); } catch { return []; } })();
+    teamName = pickActiveTeam(names, n => { try { return statSync(teamDir(n)); } catch { return null; } });
+  }
+  if (!teamName) { console.error('No active team found.'); process.exit(1); }
+  const cfg = (() => { try { return JSON.parse(readFileSync(join(teamRoot, teamName, 'config.json'), 'utf8')); } catch { return {}; } })();
+  const sessionId = arg(argv, '--session', cfg.leadSessionId);
+  const runDir = arg(argv, '--run-dir', join(process.cwd(), '.claude', 'team-runs'));
+  const recorder = new Recorder({ teamRoot, tasksRoot, teamName, projectsRoot, sessionId, runDir });
+  recorder.poll();
+  setInterval(() => recorder.poll(), 400).unref?.();
+  const { server, url, port } = startServer({ recorder, port: Number(arg(argv, '--port', 0)), viewerPath: new URL('./viewer.html', import.meta.url).pathname });
+  writeFileSync(join(runDir, `${sessionId}.lock`), JSON.stringify({ url, pid: process.pid }));
+  console.log(`agent-team monitor: ${url}  (team ${teamName})`);
+  if (argv.includes('--open')) spawn(process.platform === 'darwin' ? 'open' : 'xdg-open', [url], { stdio: 'ignore', detached: true }).unref();
+  return { server, url, port };
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) main(process.argv.slice(2));
