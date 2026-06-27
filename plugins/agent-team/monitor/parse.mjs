@@ -53,3 +53,20 @@ export function deriveProgress(tasks) {
   }
   return p;
 }
+
+export function buildRoster(config, meta) {
+  const byName = new Map((meta?.members || []).map(m => [m.name, m]));
+  return (config.members || []).map(c => {
+    const m = byName.get(c.name);
+    return {
+      name: c.name,
+      role: m?.role || String(c.agentType || '').replace(/^agent-team:/, '') || c.name,
+      model: m?.model || null,
+      agentId: c.agentId,
+    };
+  });
+}
+
+export function extractMandates(meta) {
+  return Array.isArray(meta?.mandates) ? meta.mandates : [];
+}
