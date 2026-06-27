@@ -24,8 +24,8 @@ If it isn't a team, say so and stop — forcing one is the most expensive mistak
 
 ## Process
 1. **Analyze the repo.** Read `CLAUDE.md` / `AGENTS.md`, scan the layout and `git status` for natural **ownership areas** — a *file-set* per area for build/edit work, or a *domain/lens* (brand, a11y, copy…) for review/analysis. Note invariants and load-bearing facts that live *outside* CLAUDE.md, **and any user-input prerequisites** the work will need (logins/CLI auth, domain/DNS, paid actions, secrets/keys). Each area = one role; merge a **thin** role (≤~3 files, or fewer than ~3 distinct deliverable items) into an adjacent one. 3–5 roles typical.
-2. **Resolve the scope fork, then ask only what you can't infer (1–3 questions max).** The load-bearing fork is **findings-only vs also-fix** — infer *findings-only* unless the request says fix / patch / update / resolve; ask only if genuinely ambiguous. "Also-fix" makes teammates edit code (→ plan approval) and changes the deliverable. **Propose a `Ship goal`** (one-sentence definition of done) **synthesized from the user's instruction first, with the planning/spec docs as supporting detail**, then let the user **accept it or write their own** — don't ask open-ended, and don't silently assume. Don't interrogate. **Ask via the `AskUserQuestion` tool** (selectable options — e.g. "use this Ship goal" vs "write my own"), not a plain-text prompt.
-3. **Pick a model per role** (see *Models* below) and **draft the lean plan** (format below): **lead with the one-sentence `Ship goal`**, then one role per ownership area, each with a **concrete, named deliverable**. Note any **user-input prerequisites** in `## Notes` so the lead derisks them *before* launch (don't let teammates stall mid-build on a login). Add an escalation only when its trigger fires. **Present the draft to the user as the roles table (below) and get a quick confirm — this is a pre-write review GATE, shown BEFORE step 4 (save) and before writing any file, never a post-write recap.** Send it as a normal text message containing the table; don't fold it into the `AskUserQuestion` call (that UI can't render a table), and don't skip ahead to writing the file.
+2. **Resolve the scope fork, then ask only what you can't infer (1–3 questions max).** The load-bearing fork is **findings-only vs also-fix** — infer *findings-only* unless the request says fix / patch / update / resolve; ask only if genuinely ambiguous. "Also-fix" makes teammates edit code (→ plan approval) and changes the deliverable. **Propose **Mandates** (a short bulleted end-state, 1–5 bullets) **synthesized from the user's instruction first, with the planning/spec docs as supporting detail**, then let the user **accept them or write their own** — don't ask open-ended, and don't silently assume. Don't interrogate. **Ask via the `AskUserQuestion` tool** (selectable options — e.g. "use these Mandates" vs "write my own"), not a plain-text prompt.
+3. **Pick a model per role** (see *Models* below) and **draft the lean plan** (format below): **lead with the **Mandates****, then one role per ownership area, each with a **concrete, named deliverable**. Note any **user-input prerequisites** in `## Notes` so the lead derisks them *before* launch (don't let teammates stall mid-build on a login). Add an escalation only when its trigger fires. **Present the draft to the user as the roles table (below) and get a quick confirm — this is a pre-write review GATE, shown BEFORE step 4 (save) and before writing any file, never a post-write recap.** Send it as a normal text message containing the table; don't fold it into the `AskUserQuestion` call (that UI can't render a table), and don't skip ahead to writing the file.
 4. **Ask where to save — via the `AskUserQuestion` tool** (selectable options, not a text prompt). Slug = kebab-case of the goal, ≤4 words (e.g. `review-landing-page`); the slug is **deterministic — re-running for the same goal revises the *same* file in place, never a `-v2` copy**, so `launch-team` is never ambiguous. Options:
    - `.claude/team-plans/<slug>.md` — scratch, gitignored *(default)*
    - `docs/team-playbooks/<slug>.md` — committed, reusable playbook
@@ -46,7 +46,9 @@ The model is a **per-role token in the plan** — the user overrides by editing 
 Roles go in a **table** — far more readable than a bullet wall, both in the file and when you print it back to the user.
 ```md
 # Team plan: <goal>
-Ship goal: <ONE sentence — the final shippable product / definition of done.>
+Mandates (end-state, held by the lead):
+- <bullet 1>
+- <bullet 2>
 Lead: <model>            # omit unless synthesis warrants more than your current session model
 
 Spawn <N> teammates to <goal>:
@@ -56,12 +58,12 @@ Spawn <N> teammates to <goal>:
 | <role> | <model> | <area> | <concrete, named artifact> |
 | <role> | <model> | <…> | <…> |
 
-Wait for them, then synthesize <the Ship goal>.
+Wait for them, then synthesize toward the Mandates.
 
 ## Notes
 <why a team here; which escalations fired and why>
 ```
-**`Ship goal` is mandatory** — one sentence naming the final shippable product (the shared definition of done). The lead holds it as the synthesis target and `launch-team` injects it into *every* teammate's prompt, so no role optimizes a local deliverable while losing the whole. **Propose one synthesized from the user's instruction (primary) and the planning/spec docs (supporting), then have the user accept it or write their own via `AskUserQuestion`** (offer the proposal as the selectable default).
+**Mandates are mandatory** — a short bulleted end-state (1–5 bullets) describing the final goal and state of the app after the team's work. The lead holds them as the synthesis target; `launch-team` injects them into *every* teammate's prompt and records them in the breadcrumb (`.claude/team-runs/<leadSessionId>.meta.json`), so no role optimizes a local deliverable while losing the whole. **Propose them synthesized from the user's instruction (primary) and the planning/spec docs (supporting), then have the user accept them or write their own via `AskUserQuestion`** (offer the proposal as the selectable default).
 **Name each deliverable concretely.** For a review that's *"a prioritized findings list (severity + file location + fix),"* not bare "findings."
 **Always present the plan back to the user as this table** (Role · Model · Owns · Deliverable) — never a raw paragraph/bullet dump.
 
