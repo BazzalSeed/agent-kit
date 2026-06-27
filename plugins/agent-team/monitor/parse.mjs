@@ -12,11 +12,13 @@ export function extractMessages(jsonlText, owner) {
     for (const b of content) {
       if (b && b.type === 'tool_use' && b.name === 'SendMessage') {
         const i = b.input || {};
+        const rawBody = i.message || i.content || '';
+        const body = typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody);
         out.push({
           kind: 'message',
           from: owner,
           to: i.to || i.recipient || null,
-          body: i.message || i.content || '',
+          body,
           summary: i.summary || '',
           type: i.type || 'message',
           ts,

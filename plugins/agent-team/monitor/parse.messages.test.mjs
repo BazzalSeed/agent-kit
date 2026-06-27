@@ -28,3 +28,25 @@ test('owner becomes the sender for a teammate transcript', () => {
 test('ignores blank and non-JSON lines', () => {
   assert.deepEqual(extractMessages('\nnot json\n{}\n', 'lead'), []);
 });
+
+test('object-valued message body is JSON-stringified, not [object Object]', () => {
+  const line = JSON.stringify({
+    timestamp: '2026-06-27T10:00:00.000Z',
+    message: {
+      content: [{
+        type: 'tool_use',
+        name: 'SendMessage',
+        input: {
+          to: 'x',
+          type: 'shutdown_request',
+          message: { reason: 'done', graceful: true },
+        },
+      }],
+    },
+  });
+  const msgs = extractMessages(line, 'lead');
+  assert.equal(msgs.length, 1);
+  assert.equal(typeof msgs[0].body, 'string', 'body must be a string');
+  assert.ok(msgs[0].body.includes('done'), `body should contain "done", got: ${msgs[0].body}`);
+  assert.notEqual(msgs[0].body, '[object Object]', 'body must not be [object Object]');
+});
