@@ -75,8 +75,24 @@ Add escalations **inline, above `## Notes`** — only when the trigger is true:
 
 Front-loading all three every time is the unreadable wall people complain about. Start lean.
 
+## Persona roster (pick one per lane)
+The plugin bundles eight personas as Claude Code subagents (in `agents/`, resolving as `agent-team:<name>`). Cast **one per ownership lane** — the persona *is* the role; you don't pick a base and then a flavor. Spawn matching roles via `subagent_type` so their standing discipline travels automatically; it isn't restated here.
+
+| Persona | Cast it for a lane that is… |
+|---|---|
+| `architect` | the shared contracts / schema / skeleton seam — un-parallelizable setup, no feature behavior |
+| `builder` | generic or mixed feature work with no clear domain flavor (the fallback) |
+| `backend` | server-side: APIs, services, data, migrations |
+| `frontend` | client-side: UI components, state, routing, a11y |
+| `designer` | the visual layer: design system, tokens, typography, visual correctness |
+| `qa` | the cross-cutting test harness + the drivable test seam (not builders' own units) |
+| `devops` | the ops layer: CI/CD, provisioning, deploy, env/secrets, hosting |
+| `reviewer` | the independent judge + hands-on end-to-end gate |
+
+`backend` / `frontend` / `designer` are **specializations of `builder`** — same lane-owner stance (one owner, TDD, done = tested) plus a domain quality bar. Pick the specific one when a lane is clearly domain-shaped; fall back to `builder` when it isn't. `architect` and `devops` split the shared seam: `architect` owns the **code** seam (contracts/schema/skeleton), `devops` owns the **ops** layer. `qa` builds the test seam the `reviewer` then drives. (If a bundled agent isn't resolvable this session, inline the role's brief instead.)
+
 ## Methodology defaults (for build/edit teams)
-The standing discipline for these roles lives in the bundled role agents — `agent-team:builder`, `agent-team:reviewer`, `agent-team:foundation-guardian` (in the plugin's `agents/` dir). Spawn matching roles **from** them (via `subagent_type`) so the discipline travels automatically; it isn't restated here. What stays a *planning* decision:
+The discipline itself lives in the persona files above; what stays a *planning* decision:
 - **Build/edit roles use TDD; "done" = tested** (the `builder` agent carries this). Put "unit + integration tests green before done" in the role's deliverable.
 - **Include a dedicated reviewer by default.** Builders self-testing isn't a substitute for independent eyes on cross-lane coherence, invariants, and the running product; omit it only for a trivial single-lane team. Size its model to **match or exceed the strongest builder** (judge ≥ worker). The `reviewer` agent carries the full discipline — milestone cadence, the hands-on end-to-end final gate, and the two false-pass traps — so don't restate those; just (a) give it a **drivable test seam** (e.g. a guarded dev-login) in the plan so gated/authed flows are reachable, and (b) put "drives all in-scope flows e2e + exercised-vs-unverified report" in its deliverable.
 - **Derisk user-input prerequisites before launch.** The lead resolves logins / CLI auth / domain / paid steps up front (and confirms they work) so no teammate stalls mid-build waiting on the user.
@@ -85,7 +101,7 @@ The standing discipline for these roles lives in the bundled role agents — `ag
 - Teammates inherit **CLAUDE.md, MCP servers, skills, and the lead's effort level** — but **not** the lead's model or chat history. So name a model per role and put task-specific facts in the plan.
 - **One owner per area** (file-set or domain) — overlap is how teammates collide or double-count.
 - **Much more expensive than one session** — each teammate is a full Claude; ~5–6 tasks per teammate.
-- **A gating/foundation role (e.g. an "architect") stays thin** — its job is the **un-parallelizable shared setup** (freeze the contracts + stand up the skeleton/schema/config and the deploy/infra wiring that unblocks the lanes), and it implements **no feature behavior**. It keeps **standing value** as the guardian/sole owner of the frozen seam (contracts, schema/migrations, infra/env) even after setup — don't drop it. Full discipline lives in the bundled `agent-team:foundation-guardian` agent; spawn the role from it.
+- **The `architect` role stays thin** — its job is the **un-parallelizable shared setup** (freeze the contracts + stand up the skeleton/schema/config that unblocks the lanes), and it implements **no feature behavior**. It keeps **standing value** as the guardian/sole owner of the frozen *code* seam (contracts, schema/migrations) even after setup — don't drop it. The **ops** layer (CI/CD, provisioning, deploy, env/secrets, hosting) is `devops`'s, not the architect's; add a `devops` role when the build needs a deploy path. Full discipline lives in the bundled `agent-team:architect` and `agent-team:devops` agents; spawn the roles from them.
 
 ## Common mistakes
 - **Planning from a repo doc while sidelining the user's instruction** → the team solves the wrong problem. The instruction is the authority; if none was given, ask before planning.
