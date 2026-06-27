@@ -70,3 +70,20 @@ export function buildRoster(config, meta) {
 export function extractMandates(meta) {
   return Array.isArray(meta?.mandates) ? meta.mandates : [];
 }
+
+export function computeLiveness({ now, folderExists, memberMtimes, activeMs = 30000 }) {
+  const members = {};
+  for (const [name, mtime] of Object.entries(memberMtimes || {}))
+    members[name] = (mtime != null && now - mtime <= activeMs) ? 'active' : 'idle';
+  return { team: folderExists ? 'live' : 'ended', members };
+}
+
+export function readNewLines(prevOffset, buf) {
+  const slice = buf.subarray(prevOffset);
+  const text = slice.toString('utf8');
+  const lastNl = text.lastIndexOf('\n');
+  if (lastNl < 0) return { lines: [], offset: prevOffset };
+  const complete = text.slice(0, lastNl);
+  const lines = complete.split('\n').filter(l => l.length > 0);
+  return { lines, offset: prevOffset + Buffer.byteLength(complete, 'utf8') + 1 };
+}
