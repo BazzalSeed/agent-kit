@@ -175,13 +175,13 @@
   const cls=n=>'s-'+n;
   const badge=t=>({gate:'<span class="badge gate">gate</span>',approval:'<span class="badge approval">approval</span>',done:'<span class="badge done">done</span>',relay:'<span class="badge relay">relay req</span>'}[t]||'');
   // pending-approval flags (approval with no later lead reply to that teammate)
-  const flag={};
-  msgs.forEach((m,i)=>{if(m.type==='approval'){const later=msgs.slice(i+1).some(x=>x.from==='lead'&&x.to===m.from);if(!later)flag[m.from]='approve';}});
+  function computeFlags(){ const f={}; msgs.forEach((m,i)=>{ if(m.type==='approval'){ const later=msgs.slice(i+1).some(x=>x.from==='lead'&&x.to===m.from); if(!later) f[m.from]='approve'; } }); return f; }
 
   // roster: lead first, then teammates
   function lastFor(name){return [...msgs].reverse().find(m=>m.from===name||m.to===name);}
   const counts=()=>({done:tasks.filter(t=>t.status==='completed').length,prog:tasks.filter(t=>t.status==='in-progress').length,block:tasks.filter(t=>t.status==='pending'&&t.blockedBy).length,pend:tasks.filter(t=>t.status==='pending'&&!t.blockedBy).length,total:tasks.length});
   function roster(sel){
+    const flag = computeFlags();
     const c=counts(),pct=Math.round(100*c.done/c.total);
     let h=`<button class="pinrow ${sel==='progress'?'on':''}" data-role="progress">
         <span class="r1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg>
@@ -253,17 +253,22 @@
   function select(s){sel=s;roster(s);s==='progress'?showProgress():s==='lead'?showLead():showTeammate(s);}
   document.getElementById('roster').addEventListener('click',e=>{const b=e.target.closest('[data-role]');if(b)select(b.dataset.role);});
   async function load() {
-    const s = await (await fetch('/state')).json();
-    members = s.members.map(m => ({ name: m.name, role: m.role, model: m.model || '—', active: (s.liveness?.members?.[m.name] ?? 'idle') === 'active' }));
-    mandates = s.mandates;
-    tasks = s.tasks.map(t => ({ id: t.id, sj: t.subject, own: t.owner || '', status: t.status, af: t.activeForm, blockedBy: t.blockedBy?.length ? t.blockedBy : null }));
-    msgs = s.messages.map(m => ({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }));
-    document.getElementById('meta').textContent = `${members.length} teammates · ${msgs.length} msgs · ${s.liveness?.team === 'live' ? 'live' : 'ended'}`;
-    renderMandates();
-    select(sel);
+    try {
+      const s = await (await fetch('/state')).json();
+      members = s.members.map(m => ({ name: m.name, role: m.role, model: m.model || '—', active: (s.liveness?.members?.[m.name] ?? 'idle') === 'active' }));
+      mandates = s.mandates;
+      tasks = s.tasks.map(t => ({ id: t.id, sj: t.subject, own: t.owner || '', status: t.status, af: t.activeForm, blockedBy: t.blockedBy?.length ? t.blockedBy : null }));
+      msgs = s.messages.map(m => ({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }));
+      document.getElementById('meta').textContent = `${members.length} teammates · ${msgs.length} msgs · ${s.liveness?.team === 'live' ? 'live' : 'ended'}`;
+      renderMandates();
+      select(sel);
+    } catch(err) {
+      document.getElementById('meta').textContent = 'monitor: cannot reach server';
+    }
   }
   const es = new EventSource('/events');
   es.onmessage = e => { const m = JSON.parse(e.data); msgs.push({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }); select(sel); };
+  es.onerror = () => { document.getElementById('meta').textContent = 'monitor: stream disconnected'; };
   load();
 </script>
 </body>
