@@ -1,0 +1,10 @@
+{
+  "sessionId":"deadbeef-0000-0000-0000-000000000000",
+  "planPath":".claude/team-plans/ship-dashboard.md",
+  "mandates":["Dashboard ships at /app, behind auth.","Orders persist to Postgres and survive reload.","Green CI on main; deploy preview live."],
+  "members":[
+    {"name":"architect","role":"contract & schema seam","model":"opus","agentType":"agent-team:architect"},
+    {"name":"backend","role":"orders API & data","model":"sonnet","agentType":"agent-team:backend"},
+    {"name":"frontend","role":"dashboard UI","model":"sonnet","agentType":"agent-team:frontend"}
+  ]
+}

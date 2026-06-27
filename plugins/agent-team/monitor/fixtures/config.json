@@ -1,0 +1,11 @@
+{
+  "name": "session-deadbeef",
+  "createdAt": "2026-06-27T09:10:00.000Z",
+  "leadAgentId": "lead-1",
+  "leadSessionId": "deadbeef-0000-0000-0000-000000000000",
+  "members": [
+    {"agentId":"a-arch","name":"architect","agentType":"agent-team:architect","joinedAt":"2026-06-27T09:11:00.000Z","tmuxPaneId":"%1","cwd":"/x","subscriptions":[],"backendType":"tmux"},
+    {"agentId":"a-back","name":"backend","agentType":"agent-team:backend","joinedAt":"2026-06-27T09:11:01.000Z","tmuxPaneId":"%2","cwd":"/x","subscriptions":[],"backendType":"tmux"},
+    {"agentId":"a-front","name":"frontend","agentType":"agent-team:frontend","joinedAt":"2026-06-27T09:11:02.000Z","tmuxPaneId":"%3","cwd":"/x","subscriptions":[],"backendType":"tmux"}
+  ]
+}

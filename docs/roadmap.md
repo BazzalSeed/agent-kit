@@ -3,6 +3,9 @@
 ## v0.1 (now)
 - `agent-team` plugin: `plan-team` + `launch-team`.
 
+## v0.9 (now)
+- **`watch-team` monitor** — local, read-only, zero-dependency browser UI (`node plugins/agent-team/monitor/watch.mjs --open`). Shows the team roster + mandates, lead↔teammate messages, and build progress. Reads the files Claude Code already writes; changes no settings.
+
 ## Intentionally not built yet
 - **`team-or-not` reference skill** — a standalone cheatsheet for "team vs subagent vs solo" + canned playbook patterns. For now that decision lives inside `plan-team`'s first step.
 - **Lifecycle hooks** — quality gates via `TeammateIdle` / `TaskCreated` / `TaskCompleted` (e.g. block "done" while tests fail). Powerful but project-specific; out of scope for a general plugin.

@@ -13,6 +13,7 @@ Two skills that help you design and launch a Claude Code [agent team](https://co
 - **`launch-team`** — checks the feature is enabled, reads the plan, spawns one named teammate per role, **waits** (instead of working solo), and synthesizes one deliverable.
 
 The split is deliberate: `plan-team` gives you a **reviewable, editable plan before you pay ~7× tokens** to run the team; `launch-team` just executes it.
+- **`watch-team`** — opens a local, read-only, zero-dependency monitor (`node plugins/agent-team/monitor/watch.mjs --open`) that shows the team's mandates, lead↔teammate messages, and build progress in the browser. It reads the files Claude Code already writes (transcripts, task lists) plus a breadcrumb `launch-team` records, and changes no settings.
 
 ## Personas
 
