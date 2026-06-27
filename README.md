@@ -14,6 +14,23 @@ Two skills that help you design and launch a Claude Code [agent team](https://co
 
 The split is deliberate: `plan-team` gives you a **reviewable, editable plan before you pay ~7× tokens** to run the team; `launch-team` just executes it.
 
+## Personas
+
+The plugin ships **eight reusable roles** as Claude Code subagents (in `plugins/agent-team/agents/`, resolving as `agent-team:<name>`). `plan-team` casts **one persona per ownership lane**; `launch-team` spawns it via `subagent_type`, so each teammate carries its standing discipline automatically — no re-pasting role text into the plan. The persona *is* the role: you cast one per lane, you don't pick a base and then a flavor.
+
+| Persona | Cast it for a lane that is… |
+|---|---|
+| `architect` | the shared **code seam** — contracts / schema / skeleton — frozen before lanes fork; implements no feature behavior, then guards the seam as it evolves |
+| `builder` | generic or mixed feature work with no clear domain flavor (the fallback lane owner) |
+| `backend` | server-side: APIs, services, data, migrations |
+| `frontend` | client-side: UI components, state, routing, accessibility |
+| `designer` | the visual layer: design system, tokens, typography, visual correctness |
+| `qa` | the cross-cutting test harness + the **drivable test seam** (distinct from builders' own unit tests) |
+| `devops` | the **ops layer**: CI/CD, provisioning, deploy, env/secrets, hosting |
+| `reviewer` | the independent judge + the hands-on **end-to-end gate** that drives the running product |
+
+`backend` / `frontend` / `designer` are **specializations of `builder`** — the same lane-owner stance (one owner per area, test-first, "done" = tests green) plus a domain quality bar. Use the specific one when a lane is clearly domain-shaped; fall back to `builder` when it isn't. `architect` and `devops` split the shared setup — code seam vs. ops layer — and `qa` builds the test seam the `reviewer` then drives.
+
 ## Install
 
 ```text
@@ -41,6 +58,9 @@ agent-kit/
       skills/
         plan-team/SKILL.md
         launch-team/SKILL.md
+      agents/                      # 8 reusable role personas (agent-team:<name>)
+        architect.md  builder.md  reviewer.md
+        backend.md  frontend.md  designer.md  qa.md  devops.md
   docs/
     design.md                      # design + the corrected agent-team template
     install.md                     # install + local-testing + enabling teams

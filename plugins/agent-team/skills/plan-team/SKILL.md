@@ -1,12 +1,17 @@
 ---
 name: plan-team
-description: Use when scoping or designing a Claude Code agent team — deciding the roles, who owns which files or domains, which model each teammate runs, and each teammate's deliverable — or when unsure whether a task is worth a team versus subagents or solo work.
+description: Use when the user gives a free-text instruction to plan or spin up an agent team (e.g. "plan a team to fix all the bugs"), or when scoping or designing a Claude Code agent team — deciding the roles, who owns which files or domains, which model each teammate runs, and each teammate's deliverable — or when unsure whether a task is worth a team versus subagents or solo work.
 ---
 
 # Plan a team
 
 ## Overview
 Design a high-leverage agent team **before** spending on it. Teams cost much more than a normal session — each teammate is a full Claude with its own context window — so the win comes from a tight plan: the right roles, **one owner per area**, the right model per role, a concrete deliverable each, and only the coordination ceremony the task needs. Core rule: **lean by default, escalate on trigger.** Output is a reviewable plan file that the `launch-team` skill spawns from.
+
+## Start from the user's instruction
+The free-text ask the user gave when invoking this skill — e.g. *"plan a team to fix all the bugs in my app"* — **is the authority. It drives the plan and outranks any planning/spec doc in the repo.** Repo docs (`CLAUDE.md`, specs, planning files) are **supporting context** that inform *how* to deliver on the instruction; they never override it or substitute for it. Where the instruction and a repo doc disagree, the instruction wins.
+
+**If no instruction was given** (the skill fired with no goal), **ask the user what the team should do before planning anything** — via the `AskUserQuestion` tool, or a plain-text question for a free-form goal. Do **not** silently fall back to planning from whatever doc happens to be in the repo. Proceed only once you have an explicit goal.
 
 ## First: is a team even right?
 | The work is… | Use |
@@ -19,7 +24,7 @@ If it isn't a team, say so and stop — forcing one is the most expensive mistak
 
 ## Process
 1. **Analyze the repo.** Read `CLAUDE.md` / `AGENTS.md`, scan the layout and `git status` for natural **ownership areas** — a *file-set* per area for build/edit work, or a *domain/lens* (brand, a11y, copy…) for review/analysis. Note invariants and load-bearing facts that live *outside* CLAUDE.md, **and any user-input prerequisites** the work will need (logins/CLI auth, domain/DNS, paid actions, secrets/keys). Each area = one role; merge a **thin** role (≤~3 files, or fewer than ~3 distinct deliverable items) into an adjacent one. 3–5 roles typical.
-2. **Resolve the scope fork, then ask only what you can't infer (1–3 questions max).** The load-bearing fork is **findings-only vs also-fix** — infer *findings-only* unless the request says fix / patch / update / resolve; ask only if genuinely ambiguous. "Also-fix" makes teammates edit code (→ plan approval) and changes the deliverable. **Propose a `Ship goal`** (one-sentence definition of done) **synthesized from the planning/spec docs**, then let the user **accept it or write their own** — don't ask open-ended, and don't silently assume. Don't interrogate. **Ask via the `AskUserQuestion` tool** (selectable options — e.g. "use this Ship goal" vs "write my own"), not a plain-text prompt.
+2. **Resolve the scope fork, then ask only what you can't infer (1–3 questions max).** The load-bearing fork is **findings-only vs also-fix** — infer *findings-only* unless the request says fix / patch / update / resolve; ask only if genuinely ambiguous. "Also-fix" makes teammates edit code (→ plan approval) and changes the deliverable. **Propose a `Ship goal`** (one-sentence definition of done) **synthesized from the user's instruction first, with the planning/spec docs as supporting detail**, then let the user **accept it or write their own** — don't ask open-ended, and don't silently assume. Don't interrogate. **Ask via the `AskUserQuestion` tool** (selectable options — e.g. "use this Ship goal" vs "write my own"), not a plain-text prompt.
 3. **Pick a model per role** (see *Models* below) and **draft the lean plan** (format below): **lead with the one-sentence `Ship goal`**, then one role per ownership area, each with a **concrete, named deliverable**. Note any **user-input prerequisites** in `## Notes` so the lead derisks them *before* launch (don't let teammates stall mid-build on a login). Add an escalation only when its trigger fires. **Present the draft to the user as the roles table (below) and get a quick confirm — this is a pre-write review GATE, shown BEFORE step 4 (save) and before writing any file, never a post-write recap.** Send it as a normal text message containing the table; don't fold it into the `AskUserQuestion` call (that UI can't render a table), and don't skip ahead to writing the file.
 4. **Ask where to save — via the `AskUserQuestion` tool** (selectable options, not a text prompt). Slug = kebab-case of the goal, ≤4 words (e.g. `review-landing-page`); the slug is **deterministic — re-running for the same goal revises the *same* file in place, never a `-v2` copy**, so `launch-team` is never ambiguous. Options:
    - `.claude/team-plans/<slug>.md` — scratch, gitignored *(default)*
@@ -56,7 +61,7 @@ Wait for them, then synthesize <the Ship goal>.
 ## Notes
 <why a team here; which escalations fired and why>
 ```
-**`Ship goal` is mandatory** — one sentence naming the final shippable product (the shared definition of done). The lead holds it as the synthesis target and `launch-team` injects it into *every* teammate's prompt, so no role optimizes a local deliverable while losing the whole. **Propose one synthesized from the planning/spec docs, then have the user accept it or write their own via `AskUserQuestion`** (offer the proposal as the selectable default).
+**`Ship goal` is mandatory** — one sentence naming the final shippable product (the shared definition of done). The lead holds it as the synthesis target and `launch-team` injects it into *every* teammate's prompt, so no role optimizes a local deliverable while losing the whole. **Propose one synthesized from the user's instruction (primary) and the planning/spec docs (supporting), then have the user accept it or write their own via `AskUserQuestion`** (offer the proposal as the selectable default).
 **Name each deliverable concretely.** For a review that's *"a prioritized findings list (severity + file location + fix),"* not bare "findings."
 **Always present the plan back to the user as this table** (Role · Model · Owns · Deliverable) — never a raw paragraph/bullet dump.
 
@@ -70,22 +75,36 @@ Add escalations **inline, above `## Notes`** — only when the trigger is true:
 
 Front-loading all three every time is the unreadable wall people complain about. Start lean.
 
+## Persona roster (pick one per lane)
+The plugin bundles eight personas as Claude Code subagents (in `agents/`, resolving as `agent-team:<name>`). Cast **one per ownership lane** — the persona *is* the role; you don't pick a base and then a flavor. Spawn matching roles via `subagent_type` so their standing discipline travels automatically; it isn't restated here.
+
+| Persona | Cast it for a lane that is… |
+|---|---|
+| `architect` | the shared contracts / schema / skeleton seam — un-parallelizable setup, no feature behavior |
+| `builder` | generic or mixed feature work with no clear domain flavor (the fallback) |
+| `backend` | server-side: APIs, services, data, migrations |
+| `frontend` | client-side: UI components, state, routing, a11y |
+| `designer` | the visual layer: design system, tokens, typography, visual correctness |
+| `qa` | the cross-cutting test harness + the drivable test seam (not builders' own units) |
+| `devops` | the ops layer: CI/CD, provisioning, deploy, env/secrets, hosting |
+| `reviewer` | the independent judge + hands-on end-to-end gate |
+
+`backend` / `frontend` / `designer` are **specializations of `builder`** — same lane-owner stance (one owner, TDD, done = tested) plus a domain quality bar. Pick the specific one when a lane is clearly domain-shaped; fall back to `builder` when it isn't. `architect` and `devops` split the shared seam: `architect` owns the **code** seam (contracts/schema/skeleton), `devops` owns the **ops** layer. `qa` builds the test seam the `reviewer` then drives. (If a bundled agent isn't resolvable this session, inline the role's brief instead.)
+
 ## Methodology defaults (for build/edit teams)
-- **Build/edit roles use TDD and run their own tests.** Each builder writes tests, then code, and **runs its unit + integration tests green before reporting "done"** — "done" means "tested," not "I wrote it." Put this in the role's deliverable.
-- **A build/edit team almost always has a dedicated reviewer role — include one by default.** Builders self-testing their own work is not a substitute for an independent set of eyes on cross-lane coherence, invariants, and the actual running product. Omit it only for a trivial single-lane team; otherwise add it and size its model to **match or exceed the strongest builder** (judge ≥ worker).
-- **Reviewer cadence = milestones, not per-task.** When builders self-test, the reviewer earns its cost at **milestones** — e.g. the foundation/contracts gate, the integration seam where lanes first connect, and a final birds-eye — checking contract adherence, invariants, and cross-lane coherence (the *expensive* failures). Per-task review is thrash; end-only review catches drift too late. State the cadence on the reviewer row.
-- **The reviewer's FINAL gate is hands-on end-to-end testing — running the product, not just reading it.** For anything runnable (web app, CLI, API, service), the reviewer's last-milestone deliverable is to **actually drive every feature and in-scope workflow end-to-end** (browser/CLI/API calls — e.g. the cmux browser for web), not merely code-read + unit results. Its report must carry an explicit **"exercised e2e" vs. "couldn't verify (with reason)"** split — never claim a flow passed that wasn't run. Where a flow can't be driven headless (real audio, interactive third-party OAuth, live webhooks), it must **flag it as unverified**, not rubber-stamp it — and the plan should provide a **drivable test seam** (e.g. a guarded dev-login) so gated/authed flows are reachable. Put "drives all in-scope flows e2e + exercised-vs-unverified report" in the reviewer's deliverable.
-  - **Two traps that turn a green review into a false pass:** (1) **DOM/exit-code present ≠ actually-correct** — an element existing in the DOM (or a command returning 0) is not proof the *output is right*; for any **visual** or output claim, the reviewer must confirm it *looks/reads correct* (screenshot-eyeball the rendered pixels, diff the actual output), not just that the element/return exists. A placeholder or broken image still has a present `<img>` with alt text. (2) **Seed/demo/fixture data ≠ the real path** — verifying against seeded or mocked data is not verifying the live data-backed flow; the reviewer must re-drive the flow against **real** data (real DB row, real upload, real API call) before marking it verified. Bake both into the reviewer's prompt.
+The discipline itself lives in the persona files above; what stays a *planning* decision:
+- **Build/edit roles use TDD; "done" = tested** (the `builder` agent carries this). Put "unit + integration tests green before done" in the role's deliverable.
+- **Include a dedicated reviewer by default.** Builders self-testing isn't a substitute for independent eyes on cross-lane coherence, invariants, and the running product; omit it only for a trivial single-lane team. Size its model to **match or exceed the strongest builder** (judge ≥ worker). The `reviewer` agent carries the full discipline — milestone cadence, the hands-on end-to-end final gate, and the two false-pass traps — so don't restate those; just (a) give it a **drivable test seam** (e.g. a guarded dev-login) in the plan so gated/authed flows are reachable, and (b) put "drives all in-scope flows e2e + exercised-vs-unverified report" in its deliverable.
 - **Derisk user-input prerequisites before launch.** The lead resolves logins / CLI auth / domain / paid steps up front (and confirms they work) so no teammate stalls mid-build waiting on the user.
 
 ## Key facts to bake in
 - Teammates inherit **CLAUDE.md, MCP servers, skills, and the lead's effort level** — but **not** the lead's model or chat history. So name a model per role and put task-specific facts in the plan.
 - **One owner per area** (file-set or domain) — overlap is how teammates collide or double-count.
 - **Much more expensive than one session** — each teammate is a full Claude; ~5–6 tasks per teammate.
-- **A gating/foundation role (e.g. an "architect") stays thin.** Its job is the **un-parallelizable shared setup** — freeze the contracts/interfaces (the *law* the builders can't change) + stand up only the **skeleton, schema, shared config, scaffolding, and deploy/infra wiring (project + env + domains + hosting) needed to unblock the parallel lanes**. Shared infra/provisioning is legitimately *its* job precisely because it runs once before the lanes fork (no collision). The one hard line: it must **NOT implement feature behavior** — leave the bodies as stubs for the builders. Its value is the frozen seam + a deployable skeleton, not feature code. Scope it: contracts + skeleton + deploy wiring, then hand off and gate.
-  - **This role has STANDING value beyond the initial setup — don't drop it just because the foundation is already built** (e.g. a resumed/continued build, or a later phase of a multi-phase plan). The same role is the natural **guardian/sole owner of changes to the frozen seam** — contracts/interfaces, schema/migrations, and infra/env — as the product evolves, so the parallel builders can't silently diverge the law. When setup is done, keep it thin and **re-scope it from *builder* to *guardian***: it verifies the existing foundation (verify-before-rebuild), then reviews & applies every contract/schema/infra *change* the lanes request — still implementing **no feature behavior**. Only merge it away if there's genuinely no shared seam to guard.
+- **The `architect` role stays thin** — its job is the **un-parallelizable shared setup** (freeze the contracts + stand up the skeleton/schema/config that unblocks the lanes), and it implements **no feature behavior**. It keeps **standing value** as the guardian/sole owner of the frozen *code* seam (contracts, schema/migrations) even after setup — don't drop it. The **ops** layer (CI/CD, provisioning, deploy, env/secrets, hosting) is `devops`'s, not the architect's; add a `devops` role when the build needs a deploy path. Full discipline lives in the bundled `agent-team:architect` and `agent-team:devops` agents; spawn the roles from them.
 
 ## Common mistakes
+- **Planning from a repo doc while sidelining the user's instruction** → the team solves the wrong problem. The instruction is the authority; if none was given, ask before planning.
 - Forcing a team when subagents or solo fit → wasted spend.
 - Vague deliverable ("help with X", a bare "findings") → drift. Name the artifact each role produces.
 - One model for everything → either overpaying (opus on mechanical work) or underpowering a synthesis. Right-size per role.
