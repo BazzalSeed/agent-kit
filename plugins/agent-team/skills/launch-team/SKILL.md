@@ -18,7 +18,7 @@ Spawn the team a plan describes, then **coordinate — do not do the work yourse
 2. **Load the plan, then derisk prerequisites.** Use the exact path/slug given; else if **exactly one** file is in `.claude/team-plans/`, use it; **if several exist and no path was given, list them and ask which via the `AskUserQuestion` tool — never silently pick the most-recent**; else, if the user gave an inline goal, invoke the `plan-team` skill (via the Skill tool) on it first. **Before spawning, the lead resolves the plan's user-input prerequisites itself** (logins / CLI auth / domain / paid steps) and confirms they actually work — so no teammate stalls mid-build. Restate what you're about to spawn **as a table (role · model · ownership)** + the **Mandates**, and get a quick go-ahead. **If invoked by another agent, not a user, skip the go-ahead and proceed.**
 3. **Spawn ALL teammates at once** — one Agent-tool call per roles-table row, in a single message, each a distinct `name`. A team is strongest with everyone present from the start; don't stagger-spawn sequential roles — handle dependencies with **prep-then-wait** instructions instead.
    - **Model:** map each row's **Model** column to the Agent tool's lowercase value (`haiku`/`sonnet`/`opus`/`fable`). If a named model isn't available this session, warn and fall back to `sonnet`.
-   - **Spawn prompt** (their whole task-world; they don't see this chat) — **inject the **Mandates** into every one**:
+   - **Spawn prompt** (their whole task-world; they don't see this chat) — inject the **Mandates** into every one:
      ```
      You are the <role> teammate. <READ-ONLY, or the edit scope.>
      MANDATES (shared end-state):
@@ -43,7 +43,7 @@ Spawn the team a plan describes, then **coordinate — do not do the work yourse
      ```
      This is a plain metadata file — it does not start any server or browser. The user opens the monitor separately with the `watch-team` skill.
 4. **Wait for the teammates. Do NOT start implementing yourself.** Monitor, answer messages, steer, **relay go-signals** between prep-then-wait roles. Let `Seams` partners message each other.
-5. **Synthesize toward the **Mandates**** — one merged output, judged against those bullets. **On a contested call, defer to the role that owns that area; don't dilute the expert into a consensus average.** If a teammate errored or returned nothing, **note the gap explicitly** and surface the uncovered area; don't silently drop it.
+5. Synthesize toward the **Mandates** — one merged output, judged against those bullets. **On a contested call, defer to the role that owns that area; don't dilute the expert into a consensus average.** If a teammate errored or returned nothing, **note the gap explicitly** and surface the uncovered area; don't silently drop it.
 6. **Leave the team running — persistence is the default** (lifecycle: spawn → work → synthesize → **stay available**). When the deliverable is synthesized, **do NOT shut the teammates down** — keep them available so the user can ask follow-ups, request revisions, or kick off the next phase with the warm context already loaded. **Tear a teammate down only when the user explicitly asks** (send a `shutdown_request` to the named teammate(s)). Session exit removes the **team config** automatically while the **task list persists** locally (retention via `cleanupPeriodDays`), so a resumed session keeps the tasks. Mid-run, intervene on a teammate only if it has gone quiet with no `TaskUpdate` and isn't reachable.
 
 ## Permissions (default: don't bypass)

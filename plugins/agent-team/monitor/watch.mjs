@@ -1,15 +1,15 @@
 import { readFileSync, readdirSync, existsSync, statSync, appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import os from 'node:os';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { teamDir, pickActiveTeam } from './sources.mjs';
+import { teamDir, pickActiveTeam, transcriptPaths } from './sources.mjs';
 import { extractMessages, normalizeTask, deriveProgress, buildRoster, extractMandates, computeLiveness, readNewLines } from './parse.mjs';
-import { transcriptPaths } from './sources.mjs';
 
 const readJSON = p => { try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; } };
 const listJSON = d => { try { return readdirSync(d).filter(f => f.endsWith('.json')); } catch { return []; } };
 const mtimeOf = p => { try { return statSync(p).mtimeMs; } catch { return null; } };
-const msgKey = m => `${m.ts}|${m.from}|${m.to}|${m.summary}`;
+const msgKey = m => `${m.ts}|${m.from}|${m.to}|${m.summary}|${m.body}`;
 
 export class Recorder {
   constructor(o) {
@@ -21,6 +21,11 @@ export class Recorder {
     this.state = { team: o.teamName, members: [], mandates: [], messages: [], tasks: [], progress: null, liveness: null };
     mkdirSync(o.runDir, { recursive: true });
     this.runFile = join(o.runDir, `${o.sessionId}.jsonl`);
+    if (existsSync(this.runFile)) {
+      for (const line of readFileSync(this.runFile, 'utf8').split('\n').filter(Boolean)) {
+        try { this.seen.add(msgKey(JSON.parse(line))); } catch { /* skip malformed lines */ }
+      }
+    }
   }
   onEvent(cb) { this.cbs.push(cb); }
   _teamDir() { return join(this.o.teamRoot, this.o.teamName); }
@@ -101,7 +106,7 @@ export function startServer({ recorder, port = 0, viewerPath }) {
 function arg(argv, name, def) { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : def; }
 
 export function main(argv) {
-  const home = process.env.HOME;
+  const home = os.homedir();
   const teamRoot = join(home, '.claude', 'teams');
   const tasksRoot = join(home, '.claude', 'tasks');
   const projectsRoot = arg(argv, '--projects', join(home, '.claude', 'projects'));

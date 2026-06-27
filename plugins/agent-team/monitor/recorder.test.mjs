@@ -56,3 +56,51 @@ test('only newly appended messages fire onEvent on the next poll', () => {
   const durable = readFileSync(join(s.runDir, 'deadbeef-0000-0000-0000-000000000000.jsonl'), 'utf8').trim().split('\n');
   assert.ok(durable.length >= 5);
 });
+
+test('two SendMessages with same ts/to/empty-summary but different bodies both appear (msgKey collision fix)', () => {
+  const s = scaffold();
+  const rec = new Recorder({
+    teamRoot: join(s.root, 'teams'), tasksRoot: join(s.root, 'tasks'),
+    teamName: 'session-deadbeef', projectsRoot: s.projects,
+    sessionId: 'deadbeef-0000-0000-0000-000000000000', runDir: s.runDir,
+  });
+  // One JSONL record with two SendMessage blocks — same timestamp, same to, empty summary, different bodies
+  appendFileSync(s.leadFile, JSON.stringify({
+    type: 'message',
+    timestamp: '2026-06-27T10:10:00.000Z',
+    message: {
+      role: 'assistant',
+      content: [
+        { type: 'tool_use', name: 'SendMessage', input: { to: 'frontend', summary: '', message: 'first instruction' } },
+        { type: 'tool_use', name: 'SendMessage', input: { to: 'frontend', summary: '', message: 'second instruction' } },
+      ],
+    },
+  }) + '\n');
+  rec.poll();
+  const st = rec.getState();
+  const pair = st.messages.filter(m => m.to === 'frontend' && m.ts === '2026-06-27T10:10:00.000Z');
+  assert.equal(pair.length, 2, 'both messages must appear — not deduplicated by msgKey');
+  assert.ok(pair.some(m => m.body === 'first instruction'));
+  assert.ok(pair.some(m => m.body === 'second instruction'));
+});
+
+test('second Recorder on same runDir does not duplicate messages or fire onEvent (mirror idempotency)', () => {
+  const s = scaffold();
+  const opts = {
+    teamRoot: join(s.root, 'teams'), tasksRoot: join(s.root, 'tasks'),
+    teamName: 'session-deadbeef', projectsRoot: s.projects,
+    sessionId: 'deadbeef-0000-0000-0000-000000000000', runDir: s.runDir,
+  };
+  const rec1 = new Recorder(opts);
+  rec1.poll();
+  const runFile = join(s.runDir, 'deadbeef-0000-0000-0000-000000000000.jsonl');
+  const linesBefore = readFileSync(runFile, 'utf8').trim().split('\n').filter(Boolean).length;
+
+  const rec2 = new Recorder({ ...opts });
+  const spy = [];
+  rec2.onEvent(m => spy.push(m));
+  rec2.poll();
+  const linesAfter = readFileSync(runFile, 'utf8').trim().split('\n').filter(Boolean).length;
+  assert.equal(spy.length, 0, 'onEvent must not fire for already-mirrored messages');
+  assert.equal(linesAfter, linesBefore, 'runFile line count must not increase on re-poll from same sources');
+});
