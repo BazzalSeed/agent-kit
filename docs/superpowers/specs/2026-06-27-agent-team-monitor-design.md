@@ -77,13 +77,15 @@ Two units, one process (`monitor/watch.mjs`):
 
 ## 6. Live/idle detection
 
-No `isActive` field exists, so liveness is **inferred**:
+No `isActive` field exists, so liveness is **inferred passively from file mtimes — the zero-setup route.** This is the **sole** mechanism in v1: it mutates nothing, requires no config, and works the instant `watch-team` runs.
 
-- **Per-teammate (passive, default):** mtime of `…/subagents/agent-<id>.jsonl` (mapped via `config.json` `agentId→name`).
-  - touched < ~30s ago → **active**; quiet 30s–few min → **idle**; thresholds tunable.
+- **Per-teammate:** mtime of `…/subagents/agent-<id>.jsonl` (mapped via `config.json` `agentId→name`).
+  - touched < ~30s ago → **active**; quiet 30s–few min → **idle** ("quiet", a visual proxy); thresholds tunable.
+  - Accepted imprecision: a teammate mid-long-operation may briefly read idle until its next transcript append; it self-corrects.
 - **Whole team:** team folder exists + lead-transcript mtime. Folder deleted → session ended → monitor flips to **read-only "ended"** mode on the last durable snapshot.
-- **Optional sharpening:** the `TeammateIdle` hook (payload `teammate_name`, `team_name`) gives precise idle transitions; `watch-team` may offer to install a one-line hook that appends events to a file the monitor reads. Enhancement, not a dependency.
-- **Not used:** `tmuxPaneId` probing — couples to tmux internals for marginal gain.
+- **Deliberately NOT used in v1:**
+  - The `TeammateIdle` hook — gives precise idle transitions but requires a **`settings.json` mutation** (permission prompt) and, once installed, fires for *every* team in *every* session as an always-on side effect, even when not monitoring. The marginal precision isn't worth that persistent footprint; the easy, side-effect-free mtime route wins. (Revisitable later as an explicit opt-in, never auto-installed.)
+  - `tmuxPaneId` probing — couples to tmux internals for marginal gain.
 
 ## 7. UI
 
@@ -98,7 +100,7 @@ No `isActive` field exists, so liveness is **inferred**:
 
 ## 8. Companion skill/plugin changes
 
-- **New skill `watch-team`** — starts/attaches the monitor: resolves the active team, launches `node monitor/watch.mjs --team session-<id> --open`, idempotent via the lockfile (re-running reopens the tab rather than double-recording). Optionally offers the `TeammateIdle` hook.
+- **New skill `watch-team`** — starts/attaches the monitor: resolves the active team, launches `node monitor/watch.mjs --team session-<id> --open`, idempotent via the lockfile (re-running reopens the tab rather than double-recording). No `settings.json` changes — liveness is mtime-based (§6).
 - **`launch-team` edit (metadata only):** at spawn, write `.claude/team-runs/<session-id>.meta.json` = `{ sessionId, planPath?, mandates: string[], members: [{name, role, model, agentType}] }`. No UI launch.
 - **`plan-team` edit:** Ship goal (one sentence) → **Mandates** (bulleted end-state held by the lead). Update wording, the table, and the `launch-team` injection that propagates them.
 - **Repo:** `.gitignore` add `team-runs/`; README "Monitor" section; `roadmap.md` update.
@@ -118,9 +120,9 @@ Edits: `launch-team/SKILL.md` (breadcrumb write), `plan-team/SKILL.md` (mandates
 
 - **OR-1 — transcript format coupling.** Comms + spawn-prompt parsing depend on the undocumented transcript JSONL schema (`SendMessage` shape, `subagents/` path). A Claude Code update could reshape it → parser tweak. Same coupling class as reading any `~/.claude` internal; accepted, isolated to a small adapter.
 - **OR-2 — task `owner` attribution.** Per-teammate progress needs `owner` on task files; absent in the solo sample. If unset in real teams, attribute via transcript `TaskUpdate` calls (fallback) or drop per-lane progress to overall-only.
-- **OR-3 — live/idle thresholds** are heuristic until the probe; the `TeammateIdle` hook is the precise upgrade.
+- **OR-3 — live/idle thresholds** are heuristic until the probe confirms good values. Liveness is intentionally mtime-only (no hook, no setup); accepted imprecision per §6.
 - **OR-4 — breadcrumb absence.** A team launched without our `launch-team` has no `meta.json`; fall back to spawn-prompt parsing for mandates/role/model.
 
 ## 12. Out of scope (v1)
 
-Sending messages; multi-team dashboard; historical/cross-session archive browser; auth/remote hosting; reshaping the plugin's "seams" guidance (noted: peer messaging is unused in practice — separate consideration).
+Sending messages; multi-team dashboard; historical/cross-session archive browser; auth/remote hosting; **hook-based liveness** (`TeammateIdle`) — excluded to keep liveness zero-setup and side-effect-free (§6); reshaping the plugin's "seams" guidance (noted: peer messaging is unused in practice — separate consideration).
