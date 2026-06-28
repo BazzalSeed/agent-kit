@@ -75,12 +75,10 @@
   .pane-body{flex:1;overflow:auto;padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:.5rem}
 
   /* message bubbles — single flush column; (me) is marked by tint + tag, not position */
-  .bubble{border:1px solid var(--rule);border-radius:12px;padding:.5rem .7rem;background:var(--card);border-left:3px solid var(--who,var(--accent))}
+  .bubble{border:1px solid var(--rule);border-radius:12px;padding:.5rem .7rem;background:transparent;border-left:3px solid var(--who,var(--accent))}
   .bubble .m{display:flex;align-items:baseline;gap:.4rem;font-family:var(--mono);font-size:.66rem;color:var(--muted);margin-bottom:.2rem}
   .bubble .m .nm{font-weight:700;color:var(--who)}
   .bubble .b{font-size:.86rem;color:var(--fg)}
-  .bubble.out{background:color-mix(in srgb,var(--who) 15%,var(--card));border-color:color-mix(in srgb,var(--who) 32%,var(--rule))}
-  .bubble.in{background:transparent}
   .bubble .m .ts{margin-left:auto}
   .badge{font-family:var(--mono);font-size:.56rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:.05rem .36rem;border-radius:999px;border:1px solid}
   .badge.approval{color:#c9803a;border-color:color-mix(in srgb,#c9803a 50%,transparent)}
@@ -229,9 +227,9 @@
         <span class="r1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg>
         <span class="nm">Build progress</span><span class="pct">${c.total?pct+'%':'—'}</span></span>
         <span class="mini"><i style="width:${c.total?pct:0}%"></i></span></button>`;
-    h+=`<button class="role active s-lead ${sel==='lead'?'on':''}" data-role="lead"><span class="live"></span><span class="col"><span class="nm">team-lead<span class="model">coordinator</span>${sel==='lead'?'<span class="me">me</span>':''}</span></span></button>`;
+    h+=`<button class="role active s-lead ${sel==='lead'?'on':''}" data-role="lead"><span class="live"></span><span class="col"><span class="nm">team-lead<span class="model">coordinator</span></span></span></button>`;
     h+=members.map(m=>`<button class="role ${m.active?'active':'idle'} ${cls(m.name)} ${sel===m.name?'on':''}" data-role="${m.name}">
-        <span class="live"></span><span class="col"><span class="nm">${m.name}<span class="model">${m.model}</span>${sel===m.name?'<span class="me">me</span>':''}</span></span>
+        <span class="live"></span><span class="col"><span class="nm">${m.name}<span class="model">${m.model}</span></span></span>
         ${flag[m.name]?`<span class="flag">approve</span>`:''}</button>`).join('');
     document.getElementById('roster').innerHTML=h;
   }
