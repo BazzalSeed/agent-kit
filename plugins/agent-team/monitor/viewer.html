@@ -286,6 +286,17 @@
   document.getElementById('panebody').addEventListener('click',e=>{const b=e.target.closest('.morebtn');if(!b)return;const md=b.previousElementSibling;const open=md.classList.toggle('open');b.textContent=open?'show less':'show more';});
   // control envelopes (idle pings, task assignments, raw approval JSON) are not conversation
   const isNoise=b=>/^\s*\{\s*"type"\s*:/.test(String(b||''));
+  // Repaint the current view, keeping the thread's scroll where it was
+  // (stick to the bottom if already there) so a refresh never jumps the page.
+  function rerender(){
+    const pb=document.getElementById('panebody');
+    const atBottom=pb&&(pb.scrollHeight-pb.scrollTop-pb.clientHeight<48);
+    const prevTop=pb?pb.scrollTop:0;
+    select(sel);
+    const pb2=document.getElementById('panebody');
+    if(pb2) pb2.scrollTop=atBottom?pb2.scrollHeight:prevTop;
+  }
+  let lastSig='';
   async function load() {
     try {
       const s = await (await fetch('/state')).json();
@@ -297,15 +308,21 @@
       document.querySelector('header h1 .slug').textContent = s.team;
       document.getElementById('meta').textContent = `${members.length} teammates · ${msgs.length} msgs · ${s.liveness?.team === 'live' ? 'live' : 'ended'}`;
       renderMandates();
-      select(sel);
+      // Only repaint when something visible actually changed — otherwise the
+      // 1s poll would rebuild the DOM every tick and flicker while idle.
+      const sig = JSON.stringify([s.team, s.liveness, tasks, tasksStale, mandates, members, msgs.length]);
+      if (sig === lastSig) return;
+      lastSig = sig;
+      rerender();
     } catch(err) {
       document.getElementById('meta').textContent = 'monitor: cannot reach server';
     }
   }
   const es = new EventSource('/events');
-  es.onmessage = e => { const m = JSON.parse(e.data); if (isNoise(m.body)) return; msgs.push({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }); select(sel); };
+  es.onmessage = e => { const m = JSON.parse(e.data); if (isNoise(m.body)) return; msgs.push({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }); document.getElementById('meta').textContent = `${members.length} teammates · ${msgs.length} msgs · live`; rerender(); };
   es.onerror = () => { document.getElementById('meta').textContent = 'monitor: stream disconnected'; };
   load();
+  setInterval(load, 1000);   // poll /state so tasks, progress, and liveness stay live (not just messages)
 </script>
 </body>
 </html>
