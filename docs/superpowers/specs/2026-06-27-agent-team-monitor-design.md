@@ -53,6 +53,17 @@ Each field is read from its cleanest source. The map below reflects the **actual
 
 **Team discovery:** `watch-team` runs in the lead session and knows its `session-id` → points the recorder at the exact folders. Standalone fallback: glob `~/.claude/teams/session-*`, pick the one whose `leadSessionId`/recency indicates the active team; list if several.
 
+### 4a. CORRECTIONS from the first live run (2026-06-27)
+
+The table above was written from a *solo* sample and the pre-implementation design; a real 3-teammate run corrected several load-bearing assumptions. The implementation reflects **this** reality:
+
+- **`config.json` is much richer than "§4 false" claimed.** Each member *does* carry `prompt`, `model`, `agentType`, `isActive`, `color`, `tmuxPaneId`; the top level carries `leadSessionId`, `leadAgentId`, `createdAt`. Roster/role/model/liveness are all derivable straight from config; the breadcrumb remains the clean source only for **mandates** (and as a fallback).
+- **Comms discovery was wrong and is now `teamName`-based.** There are **no `<leadSessionId>/subagents/` dirs**, and `leadSessionId` names **no transcript file** (the lead runs in-process under the chat-session id, a different uuid). Each tmux teammate runs in its **own top-level `<uuid>.jsonl`**, and **every line is tagged `teamName` + `agentName`**. The recorder discovers a team's transcripts by scanning the project dir for files whose lines carry the target `teamName`, attributing each message's `from` via `agentName`.
+- **The lead transcript is never read.** Lead→teammate messages are **mirrored into each teammate transcript** as a `type:user` envelope `<teammate-message teammate_id="team-lead" …>BODY</teammate-message>`. `extractMessages` parses both the outgoing `SendMessage` tool-uses and these incoming envelopes, so both directions are reconstructed from teammate transcripts alone. Cross-file duplicates (a teammate→teammate message is outgoing in one file and incoming in another) collapse via a timestamp-less dedup key.
+- **OR-2 resolved: task `owner` IS populated** once a teammate claims a task (`TaskUpdate owner=`); it is `null` only for unclaimed tasks. Per-teammate progress works from the `owner` field directly.
+- **Task `status` is `in_progress` (underscore), not `in-progress`.** Both the progress derivation and the viewer were keyed on the hyphen form and corrected.
+- **The lead is named `team-lead`** in all routing (not `lead`); viewer lead-detection corrected, and `team-lead` is excluded from the teammate rail (it is rendered as the dedicated lead row).
+
 ## 5. Architecture
 
 ```

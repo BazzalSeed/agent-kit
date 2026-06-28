@@ -1,28 +1,65 @@
 const SENDMSG = '"SendMessage"';
+// Incoming messages are mirrored into the recipient's transcript wrapped in an
+// envelope: <teammate-message teammate_id="X" color="…" summary="…">BODY</teammate-message>.
+// Attributes can appear in any order, so capture the attr blob and pick fields out of it.
+const TEAMMSG_RE = /<teammate-message\s+([^>]*?)>\s*([\s\S]*?)<\/teammate-message>/;
+const attrOf = (attrs, name) => {
+  const m = attrs.match(new RegExp(`${name}="([^"]*)"`));
+  return m ? m[1] : null;
+};
 
+// Extract both directions of traffic from one transcript:
+//   • OUTGOING — SendMessage tool_use blocks (from = this transcript's agent)
+//   • INCOMING — received <teammate-message> envelopes (from = the envelope's sender)
+// `owner` is the agent that owns this transcript; a per-line `agentName`, when
+// present, takes precedence (real transcripts tag every line with it).
 export function extractMessages(jsonlText, owner) {
   const out = [];
   for (const line of jsonlText.split('\n')) {
-    if (!line.includes(SENDMSG)) continue;
+    if (!line.trim()) continue;
     let rec;
     try { rec = JSON.parse(line); } catch { continue; }
     const ts = rec.timestamp || rec.ts || null;
-    let content = rec.message?.content ?? rec.content ?? [];
-    if (!Array.isArray(content)) content = [content];
-    for (const b of content) {
-      if (b && b.type === 'tool_use' && b.name === 'SendMessage') {
-        const i = b.input || {};
-        const rawBody = i.message || i.content || '';
-        const body = typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody);
-        out.push({
-          kind: 'message',
-          from: owner,
-          to: i.to || i.recipient || null,
-          body,
-          summary: i.summary || '',
-          type: i.type || 'message',
-          ts,
-        });
+    const self = rec.agentName || owner;
+    const raw = rec.message?.content ?? rec.content ?? [];
+
+    if (line.includes(SENDMSG)) {
+      const blocks = Array.isArray(raw) ? raw : [raw];
+      for (const b of blocks) {
+        if (b && b.type === 'tool_use' && b.name === 'SendMessage') {
+          const i = b.input || {};
+          const rawBody = i.message || i.content || '';
+          const body = typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody);
+          out.push({
+            kind: 'message',
+            from: self,
+            to: i.to || i.recipient || null,
+            body,
+            summary: i.summary || '',
+            type: i.type || 'message',
+            ts,
+          });
+        }
+      }
+    }
+
+    if (typeof raw === 'string' && raw.includes('<teammate-message')) {
+      const m = raw.match(TEAMMSG_RE);
+      if (m) {
+        const sender = attrOf(m[1], 'teammate_id');
+        // Skip self-addressed envelopes; a teammate→teammate message also appears
+        // as OUTGOING in the sender's own transcript and is deduped downstream.
+        if (sender && sender !== self) {
+          out.push({
+            kind: 'message',
+            from: sender,
+            to: self,
+            body: m[2].trim(),
+            summary: attrOf(m[1], 'summary') || '',
+            type: 'message',
+            ts,
+          });
+        }
       }
     }
   }
@@ -44,7 +81,7 @@ export function deriveProgress(tasks) {
   const p = { done: 0, inProgress: 0, blocked: 0, upNext: 0, total: tasks.length, byOwner: {} };
   for (const t of tasks) {
     if (t.status === 'completed') p.done++;
-    else if (t.status === 'in-progress') p.inProgress++;
+    else if (t.status === 'in_progress' || t.status === 'in-progress') p.inProgress++;
     else if (t.blockedBy.length) p.blocked++;
     else p.upNext++;
     if (t.owner) {

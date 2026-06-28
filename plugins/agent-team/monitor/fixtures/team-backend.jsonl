@@ -1,0 +1,4 @@
+{"type":"system","agentSetting":"x","sessionId":"back-2222-2222-2222-222222222222"}
+{"type":"user","agentName":"backend","teamName":"session-deadbeef","timestamp":"2026-06-27T09:06:00.000Z","message":{"content":"<teammate-message teammate_id=\"architect\" color=\"blue\" summary=\"contract frozen\">\ncontract frozen — wordStats(text)\n</teammate-message>"}}
+{"type":"user","agentName":"backend","teamName":"session-deadbeef","timestamp":"2026-06-27T09:07:00.000Z","message":{"content":"<teammate-message teammate_id=\"backend\">\nself-note, should be skipped\n</teammate-message>"}}
+{"type":"assistant","agentName":"backend","teamName":"session-deadbeef","timestamp":"2026-06-27T09:10:00.000Z","message":{"content":[{"type":"tool_use","name":"SendMessage","input":{"to":"team-lead","type":"relay","message":"tests green"}}]}}

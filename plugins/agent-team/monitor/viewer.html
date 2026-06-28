@@ -176,11 +176,11 @@
   const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   const badge=t=>({gate:'<span class="badge gate">gate</span>',approval:'<span class="badge approval">approval</span>',done:'<span class="badge done">done</span>',relay:'<span class="badge relay">relay req</span>'}[t]||'');
   // pending-approval flags (approval with no later lead reply to that teammate)
-  function computeFlags(){ const f={}; msgs.forEach((m,i)=>{ if(m.type==='approval'){ const later=msgs.slice(i+1).some(x=>x.from==='lead'&&x.to===m.from); if(!later) f[m.from]='approve'; } }); return f; }
+  function computeFlags(){ const f={}; msgs.forEach((m,i)=>{ if(m.type==='approval'){ const later=msgs.slice(i+1).some(x=>x.from==='team-lead'&&x.to===m.from); if(!later) f[m.from]='approve'; } }); return f; }
 
   // roster: lead first, then teammates
   function lastFor(name){return [...msgs].reverse().find(m=>m.from===name||m.to===name);}
-  const counts=()=>({done:tasks.filter(t=>t.status==='completed').length,prog:tasks.filter(t=>t.status==='in-progress').length,block:tasks.filter(t=>t.status==='pending'&&t.blockedBy).length,pend:tasks.filter(t=>t.status==='pending'&&!t.blockedBy).length,total:tasks.length});
+  const counts=()=>({done:tasks.filter(t=>t.status==='completed').length,prog:tasks.filter(t=>t.status==='in_progress').length,block:tasks.filter(t=>t.status==='pending'&&t.blockedBy).length,pend:tasks.filter(t=>t.status==='pending'&&!t.blockedBy).length,total:tasks.length});
   function roster(sel){
     const flag = computeFlags();
     const c=counts(),pct=c.total?Math.round(100*c.done/c.total):0;
@@ -188,10 +188,10 @@
         <span class="r1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg>
         <span class="nm">Build progress</span><span class="pct">${pct}%</span></span>
         <span class="mini"><i style="width:${pct}%"></i></span></button>`;
-    h+=`<button class="role active s-lead ${sel==='lead'?'on':''}" data-role="lead"><span class="live"></span><span class="col"><span class="nm">team-lead<span class="model">opus</span></span><span class="pv">coordinates everyone · ${msgs.length} msgs</span></span></button>`;
+    h+=`<button class="role active s-lead ${sel==='lead'?'on':''}" data-role="lead"><span class="live"></span><span class="col"><span class="nm">team-lead<span class="model">coordinator</span></span><span class="pv">coordinates everyone · ${msgs.length} msgs</span></span></button>`;
     h+=members.map(m=>{const l=lastFor(m.name);return `<button class="role ${m.active?'active':'idle'} ${cls(m.name)} ${sel===m.name?'on':''}" data-role="${m.name}">
         <span class="live"></span><span class="col"><span class="nm">${m.name}<span class="model">${m.model}</span></span>
-        <span class="pv">${l?(l.from==='lead'?'lead: ':l.from+': ')+l.b.replace(/<[^>]+>/g,''):'—'}</span></span>
+        <span class="pv">${l?(l.from==='team-lead'?'lead: ':l.from+': ')+l.b.replace(/<[^>]+>/g,''):'—'}</span></span>
         ${flag[m.name]?`<span class="flag">approve</span>`:''}</button>`;}).join('');
     document.getElementById('roster').innerHTML=h;
   }
@@ -210,7 +210,7 @@
   function showLead(){
     document.getElementById('panehead').innerHTML=`<span class="tt s-lead" style="color:var(--who)">team-lead · all coordination</span><span class="sub">every lead ⇄ teammate message, in order</span>`;
     document.getElementById('panebody').innerHTML=[...msgs].sort((a,b)=>a.t.localeCompare(b.t)).map(x=>{
-      const other=x.from==='lead'?x.to:x.from;
+      const other=x.from==='team-lead'?x.to:x.from;
       return `<div class="ov"><span class="t">${x.t}</span>
         <span class="rt ${cls(x.from)}" style="color:var(--who)">${x.from}</span><span class="ar">→</span>
         <span class="rt ${cls(x.to)}" style="color:var(--who)">${x.to}</span>
@@ -221,9 +221,9 @@
     document.getElementById('panehead').innerHTML=`<span class="tt" style="color:var(--accent)">Build progress</span><span class="sub">derived from the shared task list · ${c.total} tasks</span>`;
     const pc=n=>c.total?100*n/c.total:0;
     const seg=(k,n)=>n?`<i class="${k}" style="width:${pc(n)}%"></i>`:'';
-    const stClass=t=>t.status==='completed'?'done':t.status==='in-progress'?'prog':(t.blockedBy?'block':'pend');
+    const stClass=t=>t.status==='completed'?'done':t.status==='in_progress'?'prog':(t.blockedBy?'block':'pend');
     const groups=[
-      ['In progress', t=>t.status==='in-progress'],
+      ['In progress', t=>t.status==='in_progress'],
       ['Blocked', t=>t.status==='pending'&&t.blockedBy],
       ['Up next', t=>t.status==='pending'&&!t.blockedBy],
       ['Done', t=>t.status==='completed'],
@@ -255,7 +255,7 @@
   async function load() {
     try {
       const s = await (await fetch('/state')).json();
-      members = s.members.map(m => ({ name: m.name, role: m.role, model: m.model || '—', active: (s.liveness?.members?.[m.name] ?? 'idle') === 'active' }));
+      members = s.members.filter(m => m.name !== 'team-lead').map(m => ({ name: m.name, role: m.role, model: m.model || '—', active: (s.liveness?.members?.[m.name] ?? 'idle') === 'active' }));
       mandates = s.mandates;
       tasks = s.tasks.map(t => ({ id: t.id, sj: t.subject, own: t.owner || '', status: t.status, af: t.activeForm, blockedBy: t.blockedBy?.length ? t.blockedBy : null }));
       msgs = s.messages.map(m => ({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }));

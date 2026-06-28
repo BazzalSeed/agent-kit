@@ -3,13 +3,20 @@ import { join } from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { teamDir, pickActiveTeam, transcriptPaths } from './sources.mjs';
+import { teamDir, pickActiveTeam, teamTranscripts } from './sources.mjs';
 import { extractMessages, normalizeTask, deriveProgress, buildRoster, extractMandates, computeLiveness, readNewLines } from './parse.mjs';
 
 const readJSON = p => { try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; } };
 const listJSON = d => { try { return readdirSync(d).filter(f => f.endsWith('.json')); } catch { return []; } };
+const listDir = d => { try { return readdirSync(d); } catch { return []; } };
 const mtimeOf = p => { try { return statSync(p).mtimeMs; } catch { return null; } };
-const msgKey = m => `${m.ts}|${m.from}|${m.to}|${m.summary}|${m.body}`;
+// Read enough of a transcript to find its teamName/agentName tags without
+// slurping a multi-MB file every poll — they appear in the opening lines.
+const readHead = p => { try { const s = readFileSync(p, 'utf8'); const nl = s.indexOf('\n', 16384); return nl > 0 ? s.slice(0, nl) : s; } catch { return ''; } };
+// Timestamp-less so the same logical message — outgoing in the sender's
+// transcript and incoming (different receive time) in the recipient's — dedupes
+// to one. Body stays in the key so distinct messages never collapse.
+const msgKey = m => `${m.from}|${m.to}|${m.summary}|${m.body}`;
 
 export class Recorder {
   constructor(o) {
@@ -54,19 +61,10 @@ export class Recorder {
     const members = buildRoster(config, meta);
     const mandates = extractMandates(meta);
 
-    const { lead, subDir } = transcriptPaths(this.o.projectsRoot, this.o.sessionId, p => { try { return readdirSync(p); } catch { return []; } });
-    if (lead) this._ingest(lead, 'lead');
-    const idToName = new Map((config.members || []).map(m => [m.agentId, m.name]));
     const memberMtimes = {};
-    if (subDir && existsSync(subDir)) {
-      for (const f of readdirSync(subDir)) {
-        if (!f.endsWith('.jsonl')) continue;
-        const agentId = f.replace(/^agent-/, '').replace(/\.jsonl$/, '');
-        const name = idToName.get(agentId) || agentId;
-        const fp = join(subDir, f);
-        this._ingest(fp, name);
-        memberMtimes[name] = mtimeOf(fp);
-      }
+    for (const { file, agentName } of teamTranscripts(this.o.projectsRoot, this.o.teamName, listDir, readHead)) {
+      this._ingest(file, agentName);
+      if (agentName) memberMtimes[agentName] = mtimeOf(file);
     }
 
     const tasks = listJSON(join(this.o.tasksRoot, this.o.teamName))
