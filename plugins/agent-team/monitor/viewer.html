@@ -74,13 +74,13 @@
   .pane-head .sub{font-size:.74rem;color:var(--muted)}
   .pane-body{flex:1;overflow:auto;padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:.5rem}
 
-  /* DM bubbles */
-  .bubble{max-width:74%;border:1px solid var(--rule);border-radius:12px;padding:.5rem .7rem;background:var(--card)}
+  /* message bubbles — single flush column; (me) is marked by tint + tag, not position */
+  .bubble{border:1px solid var(--rule);border-radius:12px;padding:.5rem .7rem;background:var(--card);border-left:3px solid var(--who,var(--accent))}
   .bubble .m{display:flex;align-items:baseline;gap:.4rem;font-family:var(--mono);font-size:.66rem;color:var(--muted);margin-bottom:.2rem}
   .bubble .m .nm{font-weight:700;color:var(--who)}
   .bubble .b{font-size:.86rem;color:var(--fg)}
-  .bubble.out{align-self:flex-end;border-left:3px solid var(--who,var(--accent))}
-  .bubble.in{align-self:flex-start;background:var(--card2);border-left:3px solid var(--who,var(--accent))}
+  .bubble.out{background:color-mix(in srgb,var(--who) 8%,var(--card))}
+  .bubble.in{background:var(--card)}
   .bubble .m .ts{margin-left:auto}
   .badge{font-family:var(--mono);font-size:.56rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:.05rem .36rem;border-radius:999px;border:1px solid}
   .badge.approval{color:#c9803a;border-color:color-mix(in srgb,#c9803a 50%,transparent)}
