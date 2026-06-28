@@ -79,8 +79,8 @@
   .bubble .m{display:flex;align-items:baseline;gap:.4rem;font-family:var(--mono);font-size:.66rem;color:var(--muted);margin-bottom:.2rem}
   .bubble .m .nm{font-weight:700;color:var(--who)}
   .bubble .b{font-size:.86rem;color:var(--fg)}
-  .bubble.out{background:color-mix(in srgb,var(--who) 8%,var(--card))}
-  .bubble.in{background:var(--card)}
+  .bubble.out{background:color-mix(in srgb,var(--who) 15%,var(--card));border-color:color-mix(in srgb,var(--who) 32%,var(--rule))}
+  .bubble.in{background:transparent}
   .bubble .m .ts{margin-left:auto}
   .badge{font-family:var(--mono);font-size:.56rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:.05rem .36rem;border-radius:999px;border:1px solid}
   .badge.approval{color:#c9803a;border-color:color-mix(in srgb,#c9803a 50%,transparent)}
@@ -238,7 +238,7 @@
   function renderMandates(){document.getElementById('mandates').innerHTML=mandates.map(x=>`<li>${x}</li>`).join('')+`<span class="src">held by team-lead · synthesis target</span>`;}
 
   function showTeammate(name){
-    const m=members.find(x=>x.name===name);
+    const m=members.find(x=>x.name===name) || {role:'coordinator',model:'—',active:true};
     document.getElementById('panehead').innerHTML=`<span class="tt ${cls(name)}" style="color:var(--who)">${name}<span class="me">me</span></span><span class="sub">${m.role} · ${m.model} · ${m.active?'active':'idle'} · ⇄ everyone</span>`;
     const thread=msgs.filter(x=>x.from===name||x.to===name);
     document.getElementById('panebody').innerHTML=thread.map(x=>{
@@ -246,15 +246,6 @@
       return `<div class="bubble ${out?'out':'in'} ${cls(x.from)}">
         <div class="m"><span class="nm" style="color:var(--who)">${x.from}${out?'<span class="me">me</span>':''}</span>${badge(x.type)}<span class="ts">${x.t}</span></div>
         <div class="b">${bodyHtml(x.b)}</div></div>`;}).join('');
-  }
-  function showLead(){
-    document.getElementById('panehead').innerHTML=`<span class="tt s-lead" style="color:var(--who)">team-lead<span class="me">me</span></span><span class="sub">all coordination · every message in order</span>`;
-    document.getElementById('panebody').innerHTML=[...msgs].sort((a,b)=>a.t.localeCompare(b.t)).map(x=>{
-      const other=x.from==='team-lead'?x.to:x.from;
-      return `<div class="ov"><span class="t">${x.t}</span>
-        <span class="rt ${cls(x.from)}" style="color:var(--who)">${x.from}</span><span class="ar">→</span>
-        <span class="rt ${cls(x.to)}" style="color:var(--who)">${x.to}</span>
-        <span class="bd">${esc(mdStrip(x.b))} ${badge(x.type)}</span></div>`;}).join('');
   }
   function showProgress(){
     const c=counts(),pct=c.total?Math.round(100*c.done/c.total):0;
@@ -291,7 +282,7 @@
     document.getElementById('panebody').innerHTML=h;
   }
   let sel='progress';
-  function select(s){sel=s;roster(s);s==='progress'?showProgress():s==='lead'?showLead():showTeammate(s);}
+  function select(s){sel=s;roster(s);s==='progress'?showProgress():showTeammate(s==='lead'?'team-lead':s);}
   document.getElementById('roster').addEventListener('click',e=>{const b=e.target.closest('[data-role]');if(b)select(b.dataset.role);});
   // expand/collapse long bodies
   document.getElementById('panebody').addEventListener('click',e=>{const b=e.target.closest('.morebtn');if(!b)return;const md=b.previousElementSibling;const open=md.classList.toggle('open');b.textContent=open?'show less':'show more';});
