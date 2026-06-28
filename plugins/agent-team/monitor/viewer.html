@@ -138,7 +138,8 @@
   /* rendered markdown inside message bodies */
   .md{font-size:.86rem;line-height:1.55;overflow-wrap:anywhere}
   .md p{margin:.32rem 0}.md p:first-child{margin-top:0}.md p:last-child{margin-bottom:0}
-  .md ul,.md ol{margin:.32rem 0;padding-left:1.15rem}.md li{margin:.1rem 0}
+  .md ul,.md ol{margin:.32rem 0;padding-left:0;list-style-position:inside}.md li{margin:.12rem 0}
+  .md li::marker{color:var(--muted)}
   .md .mh{font-weight:700;margin:.5rem 0 .2rem;letter-spacing:-.01em}.md .mh:first-child{margin-top:0}
   .md code{font-family:var(--mono);font-size:.8em;background:color-mix(in srgb,var(--accent) 11%,transparent);padding:.05em .35em;border-radius:4px;overflow-wrap:anywhere}
   .md strong{font-weight:700;color:var(--fg)}
