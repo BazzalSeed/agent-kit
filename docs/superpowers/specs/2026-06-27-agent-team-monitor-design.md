@@ -32,7 +32,7 @@ Read-only. Light/dark, matching the author's personal design system.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | **Read-only**, no message-sending | No supported external write API; direct inbox writes race with Claude; the lead terminal is the designed steering channel. |
-| D2 | **`watch-team` is the only launcher**; `launch-team` does **not** start any UI | Keeps `launch-team` pure orchestration (decision "b"); no server/browser side effect on every launch. |
+| D2 | ~~`watch-team` is the only launcher; `launch-team` does not start any UI~~ → **REVERSED (see §4a):** `launch-team` is the single entry point — it plans fresh, spawns, and **opens the monitor as its last step**; `watch-team` is the **re-open** path. | The monitor is the point of a launch you're watching; opening it automatically removes a manual step. `watch-team` stays read-only/idempotent, so the auto-open has no harmful side effect. |
 | D3 | **Comms source = transcripts, not inboxes** | Inboxes drain on read (empirically: 0 retained read-messages on disk) and are deleted at session end. Transcripts are append-only and persistent. |
 | D4 | **Role-centric UI** (pick a role → read its thread), not a comms graph | Empirically the team runs hub-and-spoke: **0 / 738** messages were teammate↔teammate. Peer messaging is *supported* by Claude Code but does not occur in practice. |
 | D5 | **`launch-team` writes a session-keyed breadcrumb** `.claude/team-runs/<session-id>.meta.json` with mandates + per-teammate role + model | `config.json` carries none of these. Metadata write only — not a UI side effect, so D2 holds. |
@@ -111,8 +111,8 @@ No `isActive` field exists, so liveness is **inferred passively from file mtimes
 
 ## 8. Companion skill/plugin changes
 
-- **New skill `watch-team`** — starts/attaches the monitor: resolves the active team, launches `node monitor/watch.mjs --team session-<id> --open`, idempotent via the lockfile (re-running reopens the tab rather than double-recording). No `settings.json` changes — liveness is mtime-based (§6).
-- **`launch-team` edit (metadata only):** at spawn, write `.claude/team-runs/<session-id>.meta.json` = `{ sessionId, planPath?, mandates: string[], members: [{name, role, model, agentType}] }`. No UI launch.
+- **New skill `watch-team`** — starts/attaches the monitor: resolves the active team, launches `node monitor/watch.mjs --team session-<id> --open`, idempotent via the lockfile (re-running reopens the tab rather than double-recording). No `settings.json` changes — liveness is mtime-based (§6). **`launch-team` invokes it automatically as the last launch step; running it directly is the re-open path** (D2 reversed).
+- **`launch-team` edit:** (a) **plan fresh** — always invoke `plan-team` for the run (ephemeral plan); never auto-reuse an old `.claude/team-plans/*.md` (explicit-path escape hatch only). (b) at spawn, write the breadcrumb `.claude/team-runs/<session-id>.meta.json` = `{ sessionId, planPath?, mandates: string[], members: [{name, role, model, agentType}] }`. (c) **open the monitor** (invoke `watch-team`) once teammates are online — the last launch step.
 - **`plan-team` edit:** Ship goal (one sentence) → **Mandates** (bulleted end-state held by the lead). Update wording, the table, and the `launch-team` injection that propagates them.
 - **Repo:** `.gitignore` add `team-runs/`; README "Monitor" section; `roadmap.md` update.
 
