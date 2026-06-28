@@ -80,8 +80,9 @@
   .bubble .m .nm{font-weight:700;color:var(--who)}
   .bubble .b{font-size:.86rem;color:var(--fg)}
   .bubble.out{align-self:flex-end;border-left:3px solid var(--who,var(--accent))}
-  .bubble.in{align-self:flex-start;background:var(--card2);border-left:3px solid var(--s-lead,#b04a2f)}
-  .bubble.in .m .nm{color:var(--s-lead)}
+  .bubble.in{align-self:flex-start;background:var(--card2);border-left:3px solid var(--who,var(--accent))}
+  .bubble .m .ts{margin-left:auto}
+  .bubble .m .you{margin-left:.4em;font-size:.82em;font-weight:700;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:999px;padding:0 .4em;letter-spacing:.02em;text-transform:lowercase}
   .badge{font-family:var(--mono);font-size:.56rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:.05rem .36rem;border-radius:999px;border:1px solid}
   .badge.approval{color:#c9803a;border-color:color-mix(in srgb,#c9803a 50%,transparent)}
   .badge.done{color:#2f8f6b;border-color:color-mix(in srgb,#2f8f6b 50%,transparent)}
@@ -142,11 +143,12 @@
   .md code{font-family:var(--mono);font-size:.8em;background:color-mix(in srgb,var(--accent) 11%,transparent);padding:.05em .35em;border-radius:4px;overflow-wrap:anywhere}
   .md strong{font-weight:700;color:var(--fg)}
   .md a{color:var(--accent);text-underline-offset:2px}
-  details.more>summary{cursor:pointer;list-style:none;color:var(--muted);font-size:.84rem;line-height:1.5}
-  details.more>summary::-webkit-details-marker{display:none}
-  details.more>summary::before{content:"▸";color:var(--accent);margin-right:.4em;font-size:.8em}
-  details.more[open]>summary{color:var(--accent);margin-bottom:.4rem;font-weight:600}
-  details.more[open]>summary::before{content:"▾"}
+  .md.clamp{max-height:7.6em;overflow:hidden;position:relative}
+  .md.clamp::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2.4em;background:linear-gradient(transparent,var(--card))}
+  .bubble.in .md.clamp::after{background:linear-gradient(transparent,var(--card2))}
+  .md.open{max-height:none}.md.open::after{display:none}
+  .morebtn{margin-top:.25rem;background:none;border:0;color:var(--accent);font-family:var(--mono);font-size:.66rem;cursor:pointer;padding:0}
+  .morebtn:hover{text-decoration:underline}
   .ov .bd{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}
@@ -212,7 +214,7 @@
   // plain-text flattening for one-line previews
   const mdStrip=s=>String(s).replace(/`([^`]+)`/g,'$1').replace(/\*\*?([^*\n]+)\*\*?/g,'$1').replace(/^#{1,4}\s+/gm,'').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\s+/g,' ').trim();
   // long bodies (spawn briefs, big plan posts) collapse behind a native <details>
-  function bodyHtml(s){const t=String(s); if(t.length<=320) return `<div class="md">${md(t)}</div>`; return `<details class="more"><summary>${esc(mdStrip(t).slice(0,120))}…</summary><div class="md">${md(t)}</div></details>`;}
+  function bodyHtml(s){const t=String(s); if(t.length<=360) return `<div class="md">${md(t)}</div>`; return `<div class="md clamp">${md(t)}</div><button class="morebtn" type="button">show more</button>`;}
   // pending-approval flags (approval with no later lead reply to that teammate)
   function computeFlags(){ const f={}; msgs.forEach((m,i)=>{ if(m.type==='approval'){ const later=msgs.slice(i+1).some(x=>x.from==='team-lead'&&x.to===m.from); if(!later) f[m.from]='approve'; } }); return f; }
 
@@ -240,9 +242,10 @@
     document.getElementById('panehead').innerHTML=`<span class="tt ${cls(name)}" style="color:var(--who)">team-lead ⇄ ${name}</span><span class="sub">${m.role} · ${m.model} · ${m.active?'active':'idle'}</span>`;
     const thread=msgs.filter(x=>x.from===name||x.to===name);
     document.getElementById('panebody').innerHTML=thread.map(x=>{
-      const out=x.from===name; // teammate speaking
-      return `<div class="bubble ${out?'out '+cls(name):'in'}" style="${out?'':'--s-lead:#b04a2f'}">
-        <div class="m"><span class="nm">${out?name:'team-lead'}</span>${badge(x.type)}<span style="margin-left:auto">${x.t}</span></div>
+      const out=x.from===name;                 // this teammate, on the right
+      const youChip=x.from==='team-lead'?'<span class="you">you</span>':'';
+      return `<div class="bubble ${out?'out':'in'} ${cls(x.from)}">
+        <div class="m"><span class="nm" style="color:var(--who)">${x.from}${youChip}</span>${badge(x.type)}<span class="ts">${x.t}</span></div>
         <div class="b">${bodyHtml(x.b)}</div></div>`;}).join('');
   }
   function showLead(){
@@ -290,13 +293,17 @@
   let sel='progress';
   function select(s){sel=s;roster(s);s==='progress'?showProgress():s==='lead'?showLead():showTeammate(s);}
   document.getElementById('roster').addEventListener('click',e=>{const b=e.target.closest('[data-role]');if(b)select(b.dataset.role);});
+  // expand/collapse long bodies
+  document.getElementById('panebody').addEventListener('click',e=>{const b=e.target.closest('.morebtn');if(!b)return;const md=b.previousElementSibling;const open=md.classList.toggle('open');b.textContent=open?'show less':'show more';});
+  // control envelopes (idle pings, task assignments, raw approval JSON) are not conversation
+  const isNoise=b=>/^\s*\{\s*"type"\s*:/.test(String(b||''));
   async function load() {
     try {
       const s = await (await fetch('/state')).json();
       members = s.members.filter(m => m.name !== 'team-lead').map(m => ({ name: m.name, role: m.role, model: m.model || '—', active: (s.liveness?.members?.[m.name] ?? 'idle') === 'active' }));
       mandates = s.mandates;
       tasks = s.tasks.map(t => ({ id: t.id, sj: t.subject, own: t.owner || '', status: t.status, af: t.activeForm, blockedBy: t.blockedBy?.length ? t.blockedBy : null }));
-      msgs = s.messages.map(m => ({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }));
+      msgs = s.messages.filter(m => !isNoise(m.body)).map(m => ({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }));
       document.querySelector('header h1 .slug').textContent = s.team;
       document.getElementById('meta').textContent = `${members.length} teammates · ${msgs.length} msgs · ${s.liveness?.team === 'live' ? 'live' : 'ended'}`;
       renderMandates();
@@ -306,7 +313,7 @@
     }
   }
   const es = new EventSource('/events');
-  es.onmessage = e => { const m = JSON.parse(e.data); msgs.push({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }); select(sel); };
+  es.onmessage = e => { const m = JSON.parse(e.data); if (isNoise(m.body)) return; msgs.push({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }); select(sel); };
   es.onerror = () => { document.getElementById('meta').textContent = 'monitor: stream disconnected'; };
   load();
 </script>
