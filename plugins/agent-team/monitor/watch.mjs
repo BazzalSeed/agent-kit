@@ -29,8 +29,11 @@ export class Recorder {
     mkdirSync(o.runDir, { recursive: true });
     this.runFile = join(o.runDir, `${o.sessionId}.jsonl`);
     if (existsSync(this.runFile)) {
+      // Restore the durable message record so a restarted monitor (or one
+      // attached after the team ended) renders history instead of an empty
+      // thread; `seen` still dedupes against re-tailed transcripts.
       for (const line of readFileSync(this.runFile, 'utf8').split('\n').filter(Boolean)) {
-        try { this.seen.add(msgKey(JSON.parse(line))); } catch { /* skip malformed lines */ }
+        try { const m = JSON.parse(line); this.seen.add(msgKey(m)); this.messages.push(m); } catch { /* skip malformed lines */ }
       }
     }
     // last non-empty task snapshot — survives the team's task files being cleaned

@@ -110,6 +110,15 @@ test('a fresh Recorder restores the task snapshot from disk after cleanup', () =
   assert.equal(rec2.getState().tasksStale, true);
 });
 
+test('a fresh Recorder restores the durable message record (survives restart)', () => {
+  const s = scaffold();
+  new Recorder(opts(s)).poll();                         // writes the durable runFile
+  const rec2 = new Recorder(opts(s));
+  assert.ok(rec2.messages.length >= 3, 'messages restored from runFile in constructor');
+  rec2.poll();
+  assert.ok(rec2.getState().messages.length >= 3, 'restored messages present in rendered state');
+});
+
 test('second Recorder on same runDir does not duplicate messages or fire onEvent (mirror idempotency)', () => {
   const s = scaffold();
   const rec1 = new Recorder(opts(s));
