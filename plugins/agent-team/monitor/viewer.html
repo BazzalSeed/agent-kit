@@ -56,7 +56,8 @@
   .role .col{min-width:0;flex:1}
   .role .nm{font-family:var(--mono);font-size:.82rem;font-weight:600;color:var(--who,var(--fg));display:flex;align-items:center;gap:.4rem}
   .role .nm .model{font-family:var(--mono);font-size:.62rem;font-weight:400;color:var(--muted);border:1px solid var(--rule);border-radius:999px;padding:0 .4rem}
-  .role .pv{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.12rem}
+  .role .pv{font-size:.73rem;color:color-mix(in srgb,var(--fg) 60%,var(--bg));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.14rem}
+  .role .nm .me{font-family:var(--mono);font-size:.62rem;font-weight:700;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:999px;padding:0 .4rem;letter-spacing:.02em}
   .role .flag{margin-left:auto;flex:none;font-family:var(--mono);font-size:.58rem;font-weight:700;color:#c9803a;border:1px solid color-mix(in srgb,#c9803a 50%,transparent);border-radius:999px;padding:.02rem .4rem}
 
   .divider{height:1px;background:var(--rule);margin:.7rem .3rem}
@@ -82,7 +83,6 @@
   .bubble.out{align-self:flex-end;border-left:3px solid var(--who,var(--accent))}
   .bubble.in{align-self:flex-start;background:var(--card2);border-left:3px solid var(--who,var(--accent))}
   .bubble .m .ts{margin-left:auto}
-  .bubble .m .you{margin-left:.4em;font-size:.82em;font-weight:700;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:999px;padding:0 .4em;letter-spacing:.02em;text-transform:lowercase}
   .badge{font-family:var(--mono);font-size:.56rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:.05rem .36rem;border-radius:999px;border:1px solid}
   .badge.approval{color:#c9803a;border-color:color-mix(in srgb,#c9803a 50%,transparent)}
   .badge.done{color:#2f8f6b;border-color:color-mix(in srgb,#2f8f6b 50%,transparent)}
@@ -229,7 +229,7 @@
         <span class="r1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg>
         <span class="nm">Build progress</span><span class="pct">${pct}%</span></span>
         <span class="mini"><i style="width:${pct}%"></i></span></button>`;
-    h+=`<button class="role active s-lead ${sel==='lead'?'on':''}" data-role="lead"><span class="live"></span><span class="col"><span class="nm">team-lead<span class="model">coordinator</span></span><span class="pv">coordinates everyone · ${msgs.length} msgs</span></span></button>`;
+    h+=`<button class="role active s-lead ${sel==='lead'?'on':''}" data-role="lead"><span class="live"></span><span class="col"><span class="nm">team-lead<span class="me">me</span></span><span class="pv">you coordinate the team · ${msgs.length} msgs</span></span></button>`;
     h+=members.map(m=>{const l=lastFor(m.name);return `<button class="role ${m.active?'active':'idle'} ${cls(m.name)} ${sel===m.name?'on':''}" data-role="${m.name}">
         <span class="live"></span><span class="col"><span class="nm">${m.name}<span class="model">${m.model}</span></span>
         <span class="pv">${l?(l.from==='team-lead'?'lead: ':l.from+': ')+esc(mdStrip(l.b)):'—'}</span></span>
@@ -244,9 +244,8 @@
     const thread=msgs.filter(x=>x.from===name||x.to===name);
     document.getElementById('panebody').innerHTML=thread.map(x=>{
       const out=x.from===name;                 // this teammate, on the right
-      const youChip=x.from==='team-lead'?'<span class="you">you</span>':'';
       return `<div class="bubble ${out?'out':'in'} ${cls(x.from)}">
-        <div class="m"><span class="nm" style="color:var(--who)">${x.from}${youChip}</span>${badge(x.type)}<span class="ts">${x.t}</span></div>
+        <div class="m"><span class="nm" style="color:var(--who)">${x.from}</span>${badge(x.type)}<span class="ts">${x.t}</span></div>
         <div class="b">${bodyHtml(x.b)}</div></div>`;}).join('');
   }
   function showLead(){
