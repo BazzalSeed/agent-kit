@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, copyFileSync, readFileSync, appendFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, copyFileSync, readFileSync, appendFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIX } from './smoke.test.mjs';
@@ -84,6 +84,30 @@ test('two SendMessages with same to/empty-summary but different bodies both appe
   assert.equal(pair.length, 2, 'both messages must appear — not deduplicated by msgKey');
   assert.ok(pair.some(m => m.body === 'first instruction'));
   assert.ok(pair.some(m => m.body === 'second instruction'));
+});
+
+test('retains the last task snapshot when the live task files are cleaned up', () => {
+  const s = scaffold();
+  const rec = new Recorder(opts(s));
+  rec.poll();
+  assert.equal(rec.getState().progress.total, 3);
+  const tdir = join(s.root, 'tasks', 'session-deadbeef');
+  for (const f of readdirSync(tdir)) if (f.endsWith('.json')) rmSync(join(tdir, f));
+  rec.poll();
+  const st = rec.getState();
+  assert.equal(st.progress.total, 3, 'progress retained after task files cleaned');
+  assert.equal(st.tasksStale, true);
+});
+
+test('a fresh Recorder restores the task snapshot from disk after cleanup', () => {
+  const s = scaffold();
+  new Recorder(opts(s)).poll();                       // writes the snapshot
+  const tdir = join(s.root, 'tasks', 'session-deadbeef');
+  for (const f of readdirSync(tdir)) if (f.endsWith('.json')) rmSync(join(tdir, f));
+  const rec2 = new Recorder(opts(s));                 // loads snapshot in constructor
+  rec2.poll();
+  assert.equal(rec2.getState().progress.total, 3);
+  assert.equal(rec2.getState().tasksStale, true);
 });
 
 test('second Recorder on same runDir does not duplicate messages or fire onEvent (mirror idempotency)', () => {

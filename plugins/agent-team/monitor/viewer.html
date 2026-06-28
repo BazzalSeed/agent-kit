@@ -56,8 +56,7 @@
   .role .col{min-width:0;flex:1}
   .role .nm{font-family:var(--mono);font-size:.82rem;font-weight:600;color:var(--who,var(--fg));display:flex;align-items:center;gap:.4rem}
   .role .nm .model{font-family:var(--mono);font-size:.62rem;font-weight:400;color:var(--muted);border:1px solid var(--rule);border-radius:999px;padding:0 .4rem}
-  .role .pv{font-size:.73rem;color:color-mix(in srgb,var(--fg) 60%,var(--bg));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.14rem}
-  .role .nm .me{font-family:var(--mono);font-size:.62rem;font-weight:700;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:999px;padding:0 .4rem;letter-spacing:.02em}
+  .me{margin-left:.4em;font-family:var(--mono);font-size:.62rem;font-weight:700;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:999px;padding:0 .42em;letter-spacing:.02em;vertical-align:middle;text-transform:lowercase}
   .role .flag{margin-left:auto;flex:none;font-family:var(--mono);font-size:.58rem;font-weight:700;color:#c9803a;border:1px solid color-mix(in srgb,#c9803a 50%,transparent);border-radius:999px;padding:.02rem .4rem}
 
   .divider{height:1px;background:var(--rule);margin:.7rem .3rem}
@@ -138,8 +137,7 @@
   /* rendered markdown inside message bodies */
   .md{font-size:.86rem;line-height:1.55;overflow-wrap:anywhere}
   .md p{margin:.32rem 0}.md p:first-child{margin-top:0}.md p:last-child{margin-bottom:0}
-  .md ul,.md ol{margin:.32rem 0;padding-left:0;list-style-position:inside}.md li{margin:.12rem 0}
-  .md li::marker{color:var(--muted)}
+  .md .li{margin:.14rem 0;padding-left:0}.md .li .mk{color:var(--muted);margin-right:.15em}
   .md .mh{font-weight:700;margin:.5rem 0 .2rem;letter-spacing:-.01em}.md .mh:first-child{margin-top:0}
   .md code{font-family:var(--mono);font-size:.8em;background:color-mix(in srgb,var(--accent) 11%,transparent);padding:.05em .35em;border-radius:4px;overflow-wrap:anywhere}
   .md strong{font-weight:700;color:var(--fg)}
@@ -151,6 +149,9 @@
   .morebtn{margin-top:.25rem;background:none;border:0;color:var(--accent);font-family:var(--mono);font-size:.66rem;cursor:pointer;padding:0}
   .morebtn:hover{text-decoration:underline}
   .ov .bd{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .empty{color:var(--muted);text-align:center;padding:2.6rem 1rem;font-size:.88rem}
+  .empty span{display:block;margin-top:.45rem;font-size:.78rem;opacity:.82;max-width:34ch;margin-left:auto;margin-right:auto}
 
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -183,7 +184,7 @@
   </main>
 
 <script>
-  let members = [], mandates = [], msgs = [], tasks = [];
+  let members = [], mandates = [], msgs = [], tasks = [], tasksStale = false;
 
   const root=document.documentElement;
   (function(){const mq=matchMedia('(prefers-color-scheme: dark)');root.dataset.theme=mq.matches?'dark':'light';
@@ -200,17 +201,16 @@
     .replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g,'$1<em>$2</em>')
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
   function md(src){
-    const lines=esc(src).split('\n'); let html='',list=null;
-    const close=()=>{ if(list){html+=`</${list}>`;list=null;} };
-    for(const raw of lines){
+    let html='';
+    for(const raw of esc(src).split('\n')){
       const line=raw.replace(/\s+$/,''); let m;
-      if(m=line.match(/^\s*[-*]\s+(.*)$/)){ if(list!=='ul'){close();html+='<ul>';list='ul';} html+=`<li>${mdInline(m[1])}</li>`; continue; }
-      if(m=line.match(/^\s*\d+\.\s+(.*)$/)){ if(list!=='ol'){close();html+='<ol>';list='ol';} html+=`<li>${mdInline(m[1])}</li>`; continue; }
-      if(m=line.match(/^(#{1,4})\s+(.*)$/)){ close(); html+=`<div class="mh">${mdInline(m[2])}</div>`; continue; }
-      if(!line.trim()){ close(); continue; }
-      close(); html+=`<p>${mdInline(line)}</p>`;
+      if(m=line.match(/^\s*[-*]\s+(.*)$/)){ html+=`<div class="li"><span class="mk">•</span> ${mdInline(m[1])}</div>`; continue; }
+      if(m=line.match(/^\s*(\d+)[.)]\s+(.*)$/)){ html+=`<div class="li"><span class="mk">${m[1]}.</span> ${mdInline(m[2])}</div>`; continue; }
+      if(m=line.match(/^(#{1,4})\s+(.*)$/)){ html+=`<div class="mh">${mdInline(m[2])}</div>`; continue; }
+      if(!line.trim()) continue;
+      html+=`<p>${mdInline(line)}</p>`;
     }
-    close(); return html;
+    return html;
   }
   // plain-text flattening for one-line previews
   const mdStrip=s=>String(s).replace(/`([^`]+)`/g,'$1').replace(/\*\*?([^*\n]+)\*\*?/g,'$1').replace(/^#{1,4}\s+/gm,'').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\s+/g,' ').trim();
@@ -227,29 +227,28 @@
     const c=counts(),pct=c.total?Math.round(100*c.done/c.total):0;
     let h=`<button class="pinrow ${sel==='progress'?'on':''}" data-role="progress">
         <span class="r1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg>
-        <span class="nm">Build progress</span><span class="pct">${pct}%</span></span>
-        <span class="mini"><i style="width:${pct}%"></i></span></button>`;
-    h+=`<button class="role active s-lead ${sel==='lead'?'on':''}" data-role="lead"><span class="live"></span><span class="col"><span class="nm">team-lead<span class="me">me</span></span><span class="pv">you coordinate the team · ${msgs.length} msgs</span></span></button>`;
-    h+=members.map(m=>{const l=lastFor(m.name);return `<button class="role ${m.active?'active':'idle'} ${cls(m.name)} ${sel===m.name?'on':''}" data-role="${m.name}">
-        <span class="live"></span><span class="col"><span class="nm">${m.name}<span class="model">${m.model}</span></span>
-        <span class="pv">${l?(l.from==='team-lead'?'lead: ':l.from+': ')+esc(mdStrip(l.b)):'—'}</span></span>
-        ${flag[m.name]?`<span class="flag">approve</span>`:''}</button>`;}).join('');
+        <span class="nm">Build progress</span><span class="pct">${c.total?pct+'%':'—'}</span></span>
+        <span class="mini"><i style="width:${c.total?pct:0}%"></i></span></button>`;
+    h+=`<button class="role active s-lead ${sel==='lead'?'on':''}" data-role="lead"><span class="live"></span><span class="col"><span class="nm">team-lead<span class="model">coordinator</span>${sel==='lead'?'<span class="me">me</span>':''}</span></span></button>`;
+    h+=members.map(m=>`<button class="role ${m.active?'active':'idle'} ${cls(m.name)} ${sel===m.name?'on':''}" data-role="${m.name}">
+        <span class="live"></span><span class="col"><span class="nm">${m.name}<span class="model">${m.model}</span>${sel===m.name?'<span class="me">me</span>':''}</span></span>
+        ${flag[m.name]?`<span class="flag">approve</span>`:''}</button>`).join('');
     document.getElementById('roster').innerHTML=h;
   }
   function renderMandates(){document.getElementById('mandates').innerHTML=mandates.map(x=>`<li>${x}</li>`).join('')+`<span class="src">held by team-lead · synthesis target</span>`;}
 
   function showTeammate(name){
     const m=members.find(x=>x.name===name);
-    document.getElementById('panehead').innerHTML=`<span class="tt ${cls(name)}" style="color:var(--who)">team-lead ⇄ ${name}</span><span class="sub">${m.role} · ${m.model} · ${m.active?'active':'idle'}</span>`;
+    document.getElementById('panehead').innerHTML=`<span class="tt ${cls(name)}" style="color:var(--who)">${name}<span class="me">me</span></span><span class="sub">${m.role} · ${m.model} · ${m.active?'active':'idle'} · ⇄ everyone</span>`;
     const thread=msgs.filter(x=>x.from===name||x.to===name);
     document.getElementById('panebody').innerHTML=thread.map(x=>{
-      const out=x.from===name;                 // this teammate, on the right
+      const out=x.from===name;                 // the opened teammate (me), on the right
       return `<div class="bubble ${out?'out':'in'} ${cls(x.from)}">
-        <div class="m"><span class="nm" style="color:var(--who)">${x.from}</span>${badge(x.type)}<span class="ts">${x.t}</span></div>
+        <div class="m"><span class="nm" style="color:var(--who)">${x.from}${out?'<span class="me">me</span>':''}</span>${badge(x.type)}<span class="ts">${x.t}</span></div>
         <div class="b">${bodyHtml(x.b)}</div></div>`;}).join('');
   }
   function showLead(){
-    document.getElementById('panehead').innerHTML=`<span class="tt s-lead" style="color:var(--who)">team-lead · all coordination</span><span class="sub">every lead ⇄ teammate message, in order</span>`;
+    document.getElementById('panehead').innerHTML=`<span class="tt s-lead" style="color:var(--who)">team-lead<span class="me">me</span></span><span class="sub">all coordination · every message in order</span>`;
     document.getElementById('panebody').innerHTML=[...msgs].sort((a,b)=>a.t.localeCompare(b.t)).map(x=>{
       const other=x.from==='team-lead'?x.to:x.from;
       return `<div class="ov"><span class="t">${x.t}</span>
@@ -259,7 +258,8 @@
   }
   function showProgress(){
     const c=counts(),pct=c.total?Math.round(100*c.done/c.total):0;
-    document.getElementById('panehead').innerHTML=`<span class="tt" style="color:var(--accent)">Build progress</span><span class="sub">derived from the shared task list · ${c.total} tasks</span>`;
+    document.getElementById('panehead').innerHTML=`<span class="tt" style="color:var(--accent)">Build progress</span><span class="sub">derived from the shared task list · ${c.total} tasks${tasksStale?' · final (task list cleared)':''}</span>`;
+    if(!c.total){ document.getElementById('panebody').innerHTML=`<div class="empty">No active tasks.<br><span>The team's task list is empty — either it hasn't created tasks yet, or it wrapped and the list was cleaned up.</span></div>`; return; }
     const pc=n=>c.total?100*n/c.total:0;
     const seg=(k,n)=>n?`<i class="${k}" style="width:${pc(n)}%"></i>`:'';
     const stClass=t=>t.status==='completed'?'done':t.status==='in_progress'?'prog':(t.blockedBy?'block':'pend');
@@ -303,6 +303,7 @@
       members = s.members.filter(m => m.name !== 'team-lead').map(m => ({ name: m.name, role: m.role, model: m.model || '—', active: (s.liveness?.members?.[m.name] ?? 'idle') === 'active' }));
       mandates = s.mandates;
       tasks = s.tasks.map(t => ({ id: t.id, sj: t.subject, own: t.owner || '', status: t.status, af: t.activeForm, blockedBy: t.blockedBy?.length ? t.blockedBy : null }));
+      tasksStale = !!s.tasksStale;
       msgs = s.messages.filter(m => !isNoise(m.body)).map(m => ({ from: m.from, to: m.to, t: (m.ts || '').slice(11, 16), type: m.type, b: m.body, sum: m.summary }));
       document.querySelector('header h1 .slug').textContent = s.team;
       document.getElementById('meta').textContent = `${members.length} teammates · ${msgs.length} msgs · ${s.liveness?.team === 'live' ? 'live' : 'ended'}`;

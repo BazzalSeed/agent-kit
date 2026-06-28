@@ -33,6 +33,10 @@ export class Recorder {
         try { this.seen.add(msgKey(JSON.parse(line))); } catch { /* skip malformed lines */ }
       }
     }
+    // last non-empty task snapshot — survives the team's task files being cleaned
+    // up on completion, so progress doesn't collapse to 0% on a finished team.
+    this.tasksFile = join(o.runDir, `${o.sessionId}.tasks.json`);
+    this.lastTasks = (existsSync(this.tasksFile) ? readJSON(this.tasksFile) : null) || [];
   }
   onEvent(cb) { this.cbs.push(cb); }
   _teamDir() { return join(this.o.teamRoot, this.o.teamName); }
@@ -67,14 +71,20 @@ export class Recorder {
       if (agentName) memberMtimes[agentName] = mtimeOf(file);
     }
 
-    const tasks = listJSON(join(this.o.tasksRoot, this.o.teamName))
+    const freshTasks = listJSON(join(this.o.tasksRoot, this.o.teamName))
       .map(f => readJSON(join(this.o.tasksRoot, this.o.teamName, f)))
       .filter(Boolean).map(normalizeTask);
+    if (freshTasks.length) {
+      this.lastTasks = freshTasks;
+      try { writeFileSync(this.tasksFile, JSON.stringify(freshTasks)); } catch { /* snapshot best-effort */ }
+    }
+    const tasks = freshTasks.length ? freshTasks : this.lastTasks;        // retain last known on cleanup
+    const tasksStale = freshTasks.length === 0 && this.lastTasks.length > 0;
 
     this.state = {
       team: this.o.teamName, members, mandates,
       messages: this.messages.slice().sort((a, b) => String(a.ts).localeCompare(String(b.ts))),
-      tasks, progress: deriveProgress(tasks),
+      tasks, tasksStale, progress: deriveProgress(tasks),
       liveness: computeLiveness({ now: Date.now(), folderExists, memberMtimes }),
     };
   }
