@@ -31,7 +31,9 @@ If it isn't a team, say so and stop — forcing one is the most expensive mistak
    - `docs/team-playbooks/<slug>.md` — committed, reusable playbook
    - a custom path
    On first use of the scratch path, add `.claude/team-plans/` to `.gitignore` **only if not already present.** **If you were invoked by another agent rather than a user, skip the prompt and use the default.**
-5. **Write the plan, then hand off** with the **exact path**: "review/edit it, then run `/agent-team:launch-team <path>`." Always hand off the *exact* path (not just "the plan") so launch is unambiguous. If the user requests changes, revise the same file in place and re-confirm before handing off.
+5. **Write the plan, then hand off.** Always produce the plan file at the **exact path** so launch is unambiguous; the plan is **ephemeral scratch** (a fresh launch never reuses an old one).
+   - **When `launch-team` invoked you** (the normal path — you were called by another agent, not a user): just **return the exact plan path** and stop. `launch-team` continues from there — **don't** tell the user to run `launch-team`, and don't re-confirm (your roles-table gate in step 3 was the review).
+   - **When a user invoked you directly** (planning without launching): hand off with the exact path — "review/edit it, then run `/agent-team:launch-team <path>`." If the user requests changes, revise the same file in place and re-confirm before handing off.
 
 ## Models (suggest, but make override trivial)
 Suggest a model per role, grounded in what this session can actually spawn — the Agent tool's set is **`haiku`, `sonnet`, `opus`, `fable`**; the user's plan may expose only a subset, which they can confirm with `/model`. Guidance:

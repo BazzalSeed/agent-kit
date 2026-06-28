@@ -5,7 +5,7 @@ description: Use to open a live, read-only monitor of a running Claude Code agen
 
 # Watch a team
 
-Open a local browser monitor for an agent team. **Read-only** — it observes the files Claude Code already writes; it never messages the team. Pairs with `launch-team`.
+Open a local browser monitor for an agent team. **Read-only** — it observes the files Claude Code already writes; it never messages the team. **`launch-team` invokes this automatically as its last step**, so the monitor is already up after a launch; run `watch-team` yourself to **re-open** it (a closed tab, a new session attaching to a still-running team, or a team launched some other way). Re-running is safe and idempotent — it reopens the existing monitor rather than starting a second one.
 
 ## Process
 1. **Find the team.** If you're in the lead session, use this session's id. Otherwise let the monitor auto-discover: it scans `~/.claude/teams/session-*` and picks the active one (lists them if several — ask which).

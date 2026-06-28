@@ -32,7 +32,7 @@ Read-only. Light/dark, matching the author's personal design system.
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | **Read-only**, no message-sending | No supported external write API; direct inbox writes race with Claude; the lead terminal is the designed steering channel. |
-| D2 | **`watch-team` is the only launcher**; `launch-team` does **not** start any UI | Keeps `launch-team` pure orchestration (decision "b"); no server/browser side effect on every launch. |
+| D2 | ~~`watch-team` is the only launcher; `launch-team` does not start any UI~~ → **REVERSED (see §4a):** `launch-team` is the single entry point — it plans fresh, spawns, and **opens the monitor as its last step**; `watch-team` is the **re-open** path. | The monitor is the point of a launch you're watching; opening it automatically removes a manual step. `watch-team` stays read-only/idempotent, so the auto-open has no harmful side effect. |
 | D3 | **Comms source = transcripts, not inboxes** | Inboxes drain on read (empirically: 0 retained read-messages on disk) and are deleted at session end. Transcripts are append-only and persistent. |
 | D4 | **Role-centric UI** (pick a role → read its thread), not a comms graph | Empirically the team runs hub-and-spoke: **0 / 738** messages were teammate↔teammate. Peer messaging is *supported* by Claude Code but does not occur in practice. |
 | D5 | **`launch-team` writes a session-keyed breadcrumb** `.claude/team-runs/<session-id>.meta.json` with mandates + per-teammate role + model | `config.json` carries none of these. Metadata write only — not a UI side effect, so D2 holds. |
@@ -52,6 +52,17 @@ Each field is read from its cleanest source. The map below reflects the **actual
 | Live/idle | transcript mtimes + folder existence (+ optional `TeammateIdle` hook) | See §6. |
 
 **Team discovery:** `watch-team` runs in the lead session and knows its `session-id` → points the recorder at the exact folders. Standalone fallback: glob `~/.claude/teams/session-*`, pick the one whose `leadSessionId`/recency indicates the active team; list if several.
+
+### 4a. CORRECTIONS from the first live run (2026-06-27)
+
+The table above was written from a *solo* sample and the pre-implementation design; a real 3-teammate run corrected several load-bearing assumptions. The implementation reflects **this** reality:
+
+- **`config.json` is much richer than "§4 false" claimed.** Each member *does* carry `prompt`, `model`, `agentType`, `isActive`, `color`, `tmuxPaneId`; the top level carries `leadSessionId`, `leadAgentId`, `createdAt`. Roster/role/model/liveness are all derivable straight from config; the breadcrumb remains the clean source only for **mandates** (and as a fallback).
+- **Comms discovery was wrong and is now `teamName`-based.** There are **no `<leadSessionId>/subagents/` dirs**, and `leadSessionId` names **no transcript file** (the lead runs in-process under the chat-session id, a different uuid). Each tmux teammate runs in its **own top-level `<uuid>.jsonl`**, and **every line is tagged `teamName` + `agentName`**. The recorder discovers a team's transcripts by scanning the project dir for files whose lines carry the target `teamName`, attributing each message's `from` via `agentName`.
+- **The lead transcript is never read.** Lead→teammate messages are **mirrored into each teammate transcript** as a `type:user` envelope `<teammate-message teammate_id="team-lead" …>BODY</teammate-message>`. `extractMessages` parses both the outgoing `SendMessage` tool-uses and these incoming envelopes, so both directions are reconstructed from teammate transcripts alone. Cross-file duplicates (a teammate→teammate message is outgoing in one file and incoming in another) collapse via a timestamp-less dedup key.
+- **OR-2 resolved: task `owner` IS populated** once a teammate claims a task (`TaskUpdate owner=`); it is `null` only for unclaimed tasks. Per-teammate progress works from the `owner` field directly.
+- **Task `status` is `in_progress` (underscore), not `in-progress`.** Both the progress derivation and the viewer were keyed on the hyphen form and corrected.
+- **The lead is named `team-lead`** in all routing (not `lead`); viewer lead-detection corrected, and `team-lead` is excluded from the teammate rail (it is rendered as the dedicated lead row).
 
 ## 5. Architecture
 
@@ -100,8 +111,8 @@ No `isActive` field exists, so liveness is **inferred passively from file mtimes
 
 ## 8. Companion skill/plugin changes
 
-- **New skill `watch-team`** — starts/attaches the monitor: resolves the active team, launches `node monitor/watch.mjs --team session-<id> --open`, idempotent via the lockfile (re-running reopens the tab rather than double-recording). No `settings.json` changes — liveness is mtime-based (§6).
-- **`launch-team` edit (metadata only):** at spawn, write `.claude/team-runs/<session-id>.meta.json` = `{ sessionId, planPath?, mandates: string[], members: [{name, role, model, agentType}] }`. No UI launch.
+- **New skill `watch-team`** — starts/attaches the monitor: resolves the active team, launches `node monitor/watch.mjs --team session-<id> --open`, idempotent via the lockfile (re-running reopens the tab rather than double-recording). No `settings.json` changes — liveness is mtime-based (§6). **`launch-team` invokes it automatically as the last launch step; running it directly is the re-open path** (D2 reversed).
+- **`launch-team` edit:** (a) **plan fresh** — always invoke `plan-team` for the run (ephemeral plan); never auto-reuse an old `.claude/team-plans/*.md` (explicit-path escape hatch only). (b) at spawn, write the breadcrumb `.claude/team-runs/<session-id>.meta.json` = `{ sessionId, planPath?, mandates: string[], members: [{name, role, model, agentType}] }`. (c) **open the monitor** (invoke `watch-team`) once teammates are online — the last launch step.
 - **`plan-team` edit:** Ship goal (one sentence) → **Mandates** (bulleted end-state held by the lead). Update wording, the table, and the `launch-team` injection that propagates them.
 - **Repo:** `.gitignore` add `team-runs/`; README "Monitor" section; `roadmap.md` update.
 

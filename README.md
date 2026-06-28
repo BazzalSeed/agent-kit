@@ -7,13 +7,11 @@ A Claude-first agent skill/plugin marketplace, with a future path to Codex, Pi, 
 A Claude Code **plugin marketplace** distributing reusable skills. The first plugin:
 
 ### `agent-team` — build a high-leverage agent team
-Two skills that help you design and launch a Claude Code [agent team](https://code.claude.com/docs/en/agent-teams) (the experimental lead-spawns-teammates feature) without the usual guesswork or wasted spend:
+Three skills for running a Claude Code [agent team](https://code.claude.com/docs/en/agent-teams) (the experimental lead-spawns-teammates feature) without the usual guesswork or wasted spend. **`launch-team` is the entry point** — the others are phases it drives:
 
-- **`plan-team`** — analyzes the repo (`CLAUDE.md` / `AGENTS.md` / layout), asks a couple of focused questions, and writes a **lean team plan**: the right roles, one owner per file-set, a deliverable each. Principle: *lean by default, escalate on trigger.*
-- **`launch-team`** — checks the feature is enabled, reads the plan, spawns one named teammate per role, **waits** (instead of working solo), and synthesizes one deliverable.
-
-The split is deliberate: `plan-team` gives you a **reviewable, editable plan before you pay ~7× tokens** to run the team; `launch-team` just executes it.
-- **`watch-team`** — opens a local, read-only, zero-dependency monitor (`node plugins/agent-team/monitor/watch.mjs --open`) that shows the team's mandates, lead↔teammate messages, and build progress in the browser. It reads the files Claude Code already writes (transcripts, task lists) plus a breadcrumb `launch-team` records, and changes no settings.
+- **`launch-team`** — the single command to run a team. It **plans fresh** (invokes `plan-team`), checks the feature is enabled, spawns one named teammate per role, **opens the monitor UI**, then **waits** (instead of working solo) and synthesizes one deliverable. Team plans are **ephemeral** — each launch plans anew; a prior plan is reused only if you hand `launch-team` an explicit path.
+- **`plan-team`** — the planning phase: analyzes the repo (`CLAUDE.md` / `AGENTS.md` / layout), asks a couple of focused questions, and produces a **lean team plan** (the right roles, one owner per file-set, a deliverable each) behind a mandates + roles-table review gate **before you pay ~7× tokens**. Usually invoked by `launch-team`; run it directly to design a team without launching. Principle: *lean by default, escalate on trigger.*
+- **`watch-team`** — opens a local, read-only, zero-dependency monitor (`node plugins/agent-team/monitor/watch.mjs --open`) showing the team's mandates, lead↔teammate messages, and build progress in the browser. `launch-team` opens it automatically; run `watch-team` to **re-open** it. It reads the files Claude Code already writes (transcripts, task lists) plus a breadcrumb `launch-team` records, and changes no settings.
 
 ## Personas
 
@@ -42,8 +40,9 @@ The plugin ships **eight reusable roles** as Claude Code subagents (in `plugins/
 Then in any repo:
 
 ```text
-/agent-team:plan-team     # design the team → writes .claude/team-plans/<slug>.md
-/agent-team:launch-team   # spawn it from the plan
+/agent-team:launch-team   # plan fresh → spawn the team → open the monitor (the one command you need)
+/agent-team:plan-team     # optional: design a team without launching it
+/agent-team:watch-team    # re-open the monitor for a running team
 ```
 
 Agent teams are experimental and **off by default** — enable them once (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings `env`, then restart). `launch-team` checks this and tells you exactly what to do if it's missing. See [docs/install.md](docs/install.md).
