@@ -31,12 +31,13 @@ description: Use when spawning or starting a Claude Code agent team now — from
      <Context(role) facts from the plan, if any.>
      <Seams: message <partner-name> about <X>.>   # inject the partner's spawn name
      <prep-then-wait, if this role depends on another:
-        first read <context> and post your task plan, then WAIT for the lead's go-signal
-        ("<upstream> gate green") before any writes.>
+        first read <context> and post your task plan, then WAIT for a go-signal before any writes.
+        The FIRST clear go — from the lead OR <upstream> — is authoritative: act on it immediately,
+        and do NOT re-request confirmation once you've received one.>
      <build/edit roles: use TDD; run your unit + integration tests GREEN before reporting done.>
      ```
    - **Seams:** for each pair, inject the **counterpart's spawn name** into both prompts — a teammate can't `SendMessage` to a name it was never told.
-   - **Sequential deps = prep-then-wait, not staggered spawning.** A downstream role spawns now but only **prepares** (reads context, posts its task plan) until the lead relays the upstream's go-signal — then it writes. The lead relays that signal when the upstream reports its gate green.
+   - **Sequential deps = prep-then-wait, not staggered spawning.** A downstream role spawns now but only **prepares** (reads context, posts its task plan) until the lead relays the upstream's go-signal — then it writes. The lead relays that signal when the upstream reports its gate green. **The first clear go-signal is authoritative** — the downstream starts on it (whether it came from the lead or the upstream) and must NOT loop re-requesting a canonical phrasing; likewise the **upstream acts the moment its plan is approved** — freezing the seam and handing off is an action to take immediately, not a state to wait in.
    - **Use the bundled role agents when a plan role matches one.** Spawn via `subagent_type` from the eight bundled personas — `agent-team:architect`, `agent-team:builder`, `agent-team:backend`, `agent-team:frontend`, `agent-team:designer`, `agent-team:qa`, `agent-team:devops`, `agent-team:reviewer` — and each carries its standing discipline automatically (the architect's freeze-then-guard + no-feature-behavior + verify-before-rebuild; the builder/backend/frontend/designer's TDD + "done" = tests green + their domain quality bar; qa's test-seam ownership; devops's deploy-path ownership; the reviewer's milestone cadence, hands-on end-to-end final gate, and the two false-pass traps). `backend`/`frontend`/`designer` are `builder` specializations — use whichever the plan's role names; fall back to `builder` for a generic lane. You then inject only the **per-run specifics** in the spawn prompt: the Mandates, the owned area, seam-partner names, any gate / prep-then-wait signal, and plan-approval criteria. (If a bundled agent isn't resolvable this session, inline the role's brief instead.) Two per-run reminders the agents can't know on their own: tell the **architect** (and **devops**, if present) the builders' names so they route seam/infra changes to them, and confirm the plan handed the **reviewer** a drivable test seam — built by **qa** when the team has one — to reach gated/authed flows.
    - **Plan approval:** if the plan has it, inject the criteria into the spawn prompt and instruct the teammate to send a `plan_approval_request` **before any writes**; approve/reject via the protocol response, judged against those criteria.
    - **Write the monitor breadcrumb.** Right after spawning, write `.claude/team-runs/<leadSessionId>.meta.json` capturing what the runtime files don't store, so the monitor can render the team cleanly (mandates, per-teammate role, model):
@@ -63,6 +64,7 @@ Teammates inherit the **lead's** permission mode (you can't set per-teammate at 
 - Spawning before the env check → "teammates not appearing."
 - Wrong model string (`"Sonnet"` not `"sonnet"`) or a model the session lacks → silent fallback.
 - Seams declared but partner names not injected → teammates can't actually message each other.
+- **A prep-then-wait teammate re-requesting a go-signal it already received** → polite-handshake deadlock (both sides waiting on the other). The first clear go — from the lead or the upstream — is authoritative; inject "act on the first go, don't re-confirm" into the spawn prompt, and as lead, a direct go from you is sufficient to unblock.
 - **Staggered spawning** when prep-then-wait would do → cold-start latency + less visibility. Spawn all at once; gate with instructions.
 - **Forgetting to inject the Mandates** → roles optimize local deliverables and lose the whole.
 - **Builders reporting "done" without running their tests** → defects sail to the reviewer. "Done" = tests green.
